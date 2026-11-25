@@ -1,5 +1,5 @@
-// Service Worker: Network-First com fallback para cache (caminhos relativos)
-const CACHE = 'nutripro-v7';
+// Service Worker: atualização automática (Network-First em app shell + Cache-First em mídia/fontes)
+const CACHE = 'nutripro-v8';
 const ASSETS = [
   './',
   './index.html',
@@ -41,8 +41,14 @@ const ASSETS = [
   './assets/fonts/nunito-800-latin.woff2',
 ];
 
+const STATIC_RE = /\/(?:assets\/(?:fonts|bg|sprites)|icons)\//;
+
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  event.waitUntil(
+    caches.open(CACHE)
+      .then((c) => c.addAll(ASSETS.map((u) => new Request(u, { cache: 'no-store' }))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', (event) => {
@@ -53,13 +59,36 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
+
+  // Cache-First apenas para assets estáticos pesados (fontes, sprites, artworks, ícones)
+  if (STATIC_RE.test(url.pathname)) {
+    event.respondWith(
+      caches.match(req, { ignoreSearch: true }).then((hit) => {
+        if (hit) return hit;
+        return fetch(req).then((res) => {
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put(req, copy));
+          }
+          return res;
+        });
+      })
+    );
+    return;
+  }
+
+  // Network-First com fallback para cache (navegações, .html, .js, .css, manifest.json)
   event.respondWith(
-    fetch(req)
+    fetch(req.url, { cache: 'no-store' })
       .then((res) => {
         if (res && res.ok) {
           const copy = res.clone();
@@ -68,7 +97,9 @@ self.addEventListener('fetch', (event) => {
         return res;
       })
       .catch(() =>
-        caches.match(req, { ignoreSearch: true }).then((hit) => hit || (req.mode === 'navigate' ? caches.match('./index.html') : Response.error()))
+        caches.match(req, { ignoreSearch: true }).then((hit) =>
+          hit || (req.mode === 'navigate' ? caches.match('./index.html') : Response.error())
+        )
       )
   );
 });
