@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-skin="nutridex" data-partner="bulbasaur" data-stamps="on">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Anamnese NutriPro</title>
+  <meta name="description" content="Ficha de anamnese nutricional clínica e solicitação de exames. 100% offline.">
+  <meta name="theme-color" content="#C82834">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="stylesheet" href="./css/styles.css">
+  <link rel="stylesheet" href="./css/print.css">
+  <script>
+    try {
+      var t = localStorage.getItem('nutripro.theme');
+      if (t) document.documentElement.dataset.theme = t;
+      var pt = localStorage.getItem('nutripro.partner');
+      if (pt === 'bulbasaur' || pt === 'charmander' || pt === 'pikachu') document.documentElement.dataset.partner = pt;
+      var sk = localStorage.getItem('nutripro.skin');
+      if (sk === 'nutridex' || sk === 'clean') document.documentElement.dataset.skin = sk;
+      var st = localStorage.getItem('nutripro.stamps');
+      if (st === 'on' || st === 'off') document.documentElement.dataset.stamps = st;
+    } catch (e) {}
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="top-left">
+      <button type="button" class="btn icon key" data-act="drawer" aria-label="Pacientes e backups" title="Pacientes e backups">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+      </button>
+      <div class="dex-hardware" aria-hidden="true">
+        <span class="dex-lens"><i class="dex-lens-glint"></i></span>
+        <div class="dex-leds">
+          <i class="led led-red"></i>
+          <i class="led led-yellow"></i>
+          <i class="led led-green" id="saved-led"></i>
+        </div>
+      </div>
+      <div class="brand">
+        <strong class="brand-dex">NutriDex</strong>
+        <strong class="brand-clean">Anamnese NutriPro</strong>
+        <small>Anamnese Clínica</small>
+      </div>
+    </div>
+
+    <div class="top-right">
+      <div class="saved" id="saved" role="status" aria-live="polite">
+        <i class="saved-dot" aria-hidden="true"></i>
+        <span>Salvo</span>
+      </div>
+
+      <div class="tools">
+        <button type="button" class="btn key" data-act="copy" title="Copiar resumo para prontuário">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="1"/><path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1"/></svg>
+          <span>Copiar</span>
+        </button>
+        <button type="button" class="btn key" data-act="print-an" title="Imprimir ficha de anamnese">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V4h12v5M6 18H4a1 1 0 01-1-1v-5a1 1 0 011-1h16a1 1 0 011 1v5a1 1 0 01-1 1h-2"/><rect x="6" y="14" width="12" height="6"/></svg>
+          <span>Imprimir</span>
+        </button>
+        <button type="button" class="btn icon key" data-act="settings" aria-label="Configurações" title="Configurações">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 01-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 010-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 014 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 010 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>
+        </button>
+        <button type="button" class="btn icon key" data-act="theme" aria-label="Alternar modo claro/escuro" title="Modo claro/escuro">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <div class="side-scrim" id="side-scrim"></div>
+    <aside class="sidebar" id="sidebar" aria-label="Painel do paciente e etapas">
+      <div class="side-head-mob">
+        <span>Navegação &amp; Resumo</span>
+        <button type="button" class="btn icon" data-act="sidebar" aria-label="Fechar painel">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+
+      <!-- Card Compacto do Paciente Ativo -->
+      <section class="side-card patient-card" aria-label="Paciente ativo">
+        <div class="pt-row">
+          <div class="pt-avatar" aria-hidden="true">
+            <span class="pt-dex-av"><img id="sidebar-sprite" class="sprite" src="./assets/sprites/bulbasaur.png" alt="Bulbasaur" width="40" height="40"></span>
+            <span class="pt-clean-av" id="prof-avatar">--</span>
+          </div>
+          <div class="pt-info">
+            <strong id="prof-name">Nenhum paciente aberto</strong>
+            <div class="pt-sub">
+              <span class="prof-badge" id="prof-tipo">Aguardando</span>
+              <span class="mono pt-pct" id="prof-progress">0%</span>
+            </div>
+          </div>
+        </div>
+        <div class="prof-bar" aria-hidden="true"><i id="prof-bar"></i></div>
+      </section>
+
+      <!-- Mini-HUD Vivo -->
+      <section class="side-card hud-card" id="mini-hud" aria-label="Indicadores clínicos ao vivo">
+        <div class="hud-grid">
+          <div class="hud-cell"><small>Idade</small><b id="hud-age">—</b></div>
+          <div class="hud-cell" id="hud-imc-cell"><small>IMC</small><b id="hud-imc">—</b></div>
+          <div class="hud-cell"><small>Meta Hídrica</small><b id="hud-hid">—</b></div>
+          <div class="hud-cell"><small>Bristol</small><b id="hud-bristol">—</b></div>
+        </div>
+        <div class="hud-alerts" id="hud-alerts" hidden></div>
+      </section>
+
+      <!-- Navegação Vertical das 9 Etapas -->
+      <nav class="side-nav" id="tabs" role="tablist" aria-label="Etapas da anamnese"></nav>
+    </aside>
+
+    <div class="main-col">
+      <div class="top-progress" aria-hidden="true"><i id="overall-bar"></i></div>
+      <div class="mobile-bar">
+        <button type="button" class="btn ghost" data-act="sidebar">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+          <span id="mobile-step-label">Etapas &amp; Resumo</span>
+        </button>
+        <span class="mono mob-prog" id="mob-prog">0%</span>
+      </div>
+      <main id="view" class="view"></main>
+    </div>
+  </div>
+
+  <div class="scrim" id="scrim"></div>
+  <aside class="drawer" id="drawer" aria-label="Pacientes">
+    <div class="dhead">
+      <h2>Pacientes <span class="count mono" id="pcount">0</span></h2>
+      <button type="button" class="btn icon" data-act="drawer" aria-label="Fechar">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+
+    <button type="button" class="btn primary block" data-act="new">+ Nova Anamnese</button>
+    <input type="search" id="psearch" placeholder="Buscar por nome…" aria-label="Buscar paciente">
+    <ul class="plist" id="plist"></ul>
+    <div class="dfoot">
+      <div class="row">
+        <button type="button" class="btn ghost" data-act="export">Exportar Backup (.json)</button>
+        <button type="button" class="btn ghost" data-act="import">Importar Backup (.json)</button>
+      </div>
+      <button type="button" class="btn ghost block" data-act="sample">Carregar Paciente Exemplo</button>
+      <input type="file" id="file-import" accept="application/json,.json" hidden>
+      <p class="privacy">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="1"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>
+        <span><b>Privacidade (LGPD):</b> os dados deste app ficam armazenados exclusivamente neste dispositivo (navegador). Nada é enviado a servidores.</span>
+      </p>
+    </div>
+  </aside>
+
+  <dialog id="dlg-settings" class="dlg">
+    <form method="dialog">
+      <div class="dlg-head">
+        <h2>Configurações</h2>
+        <button type="submit" class="btn icon dlg-x" value="close" aria-label="Fechar">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="cfg-tabs" role="tablist" aria-label="Categorias de configurações">
+        <button type="button" data-act="cfg-tab" data-cfg="prof" aria-selected="true">Profissional / Clínica</button>
+        <button type="button" data-act="cfg-tab" data-cfg="ui" aria-selected="false">Aparência e Tema</button>
+      </div>
+      <div class="dlg-body">
+        <div id="cfg-prof" class="cfg-pane">
+          <p class="muted small">Aparecem nos cabeçalhos e rodapés das impressões. Salvo automaticamente neste dispositivo.</p>
+          <label class="fld"><span>Nome do profissional</span><input data-s="nome" autocomplete="off"></label>
+          <label class="fld"><span>CRN</span><input data-s="crn" placeholder="ex.: CRN-3 12345" autocomplete="off"></label>
+          <label class="fld"><span>Nome da clínica / serviço</span><input data-s="clinica" autocomplete="off"></label>
+          <label class="fld"><span>Endereço</span><input data-s="end" autocomplete="off"></label>
+          <label class="fld"><span>Telefone</span><input data-s="tel" type="tel" autocomplete="off"></label>
+          <div class="fld">
+            <span>Logo da clínica (opcional para PDF)</span>
+            <div class="logo-row">
+              <input type="file" id="logo-upload" accept="image/*">
+              <button type="button" class="btn mini danger" id="logo-clear" data-act="logo-clear" hidden>Remover logo</button>
+            </div>
+            <img id="logo-preview" class="logo-preview" alt="Prévia da logo da clínica" hidden>
+          </div>
+        </div>
+
+        <div id="cfg-ui" class="cfg-pane" hidden>
+          <div class="fld">
+            <span>Estilo visual (Skin)</span>
+            <div class="skin-grid" role="group" aria-label="Selecionar estilo visual">
+              <button type="button" class="skin-opt" data-act="skin" data-skin="nutridex" aria-pressed="true">
+                <strong>NutriDex</strong>
+                <small>Portátil tátil + Pokémon</small>
+              </button>
+              <button type="button" class="skin-opt" data-act="skin" data-skin="clean" aria-pressed="false">
+                <strong>Clínico Clean</strong>
+                <small>Editorial minimalista</small>
+              </button>
+            </div>
+          </div>
+
+          <div class="fld" id="cfg-partner-box">
+            <span>Parceiro principal e cor de destaque</span>
+            <div class="partner-grid" role="group" aria-label="Selecionar parceiro">
+              <button type="button" class="partner-btn" data-act="partner" data-partner="bulbasaur" aria-pressed="true">
+                <span class="pb-frame"><img class="sprite" src="./assets/sprites/bulbasaur.png" alt="Bulbasaur" width="44" height="44"></span>
+                <span class="mono">#001</span>
+                <b>Bulbasaur</b>
+                <small>Verde</small>
+              </button>
+              <button type="button" class="partner-btn" data-act="partner" data-partner="charmander" aria-pressed="false">
+                <span class="pb-frame"><img class="sprite" src="./assets/sprites/charmander.png" alt="Charmander" width="44" height="44"></span>
+                <span class="mono">#004</span>
+                <b>Charmander</b>
+                <small>Laranja</small>
+              </button>
+              <button type="button" class="partner-btn" data-act="partner" data-partner="pikachu" aria-pressed="false">
+                <span class="pb-frame"><img class="sprite" src="./assets/sprites/pikachu.png" alt="Pikachu" width="44" height="44"></span>
+                <span class="mono">#025</span>
+                <b>Pikachu</b>
+                <small>Dourado</small>
+              </button>
+            </div>
+          </div>
+
+          <div class="fld" id="cfg-stamps-wrap">
+            <label class="toggle">
+              <input type="checkbox" id="cfg-stamps" checked>
+              <span class="track"></span>
+              <b>Exibir Pokémon temáticos nas seções das abas</b>
+            </label>
+          </div>
+        </div>
+
+        <div class="actions"><button class="btn primary" value="close">Concluir</button></div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-confirm" class="dlg small">
+    <form method="dialog">
+      <div class="dlg-head">
+        <h2>Confirmação</h2>
+        <button type="submit" class="btn icon dlg-x" value="cancel" aria-label="Fechar">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="dlg-body">
+        <p id="dlg-msg"></p>
+        <div class="actions"><button class="btn ghost" value="cancel">Cancelar</button><button class="btn danger-solid" id="dlg-ok" value="ok">Confirmar</button></div>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <div class="print-area" id="print-area-anamnese"></div>
+  <div class="print-area" id="print-area-exames"></div>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
