@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR" data-skin="nutridex" data-partner="bulbasaur" data-stamps="on">
+<html lang="pt-BR" data-skin="nutridex" data-partner="bulbasaur" data-stamps="on" data-bg="on">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -7,8 +7,8 @@
   <meta name="description" content="Ficha de anamnese nutricional clínica e solicitação de exames. 100% offline.">
   <meta name="theme-color" content="#C82834">
   <link rel="manifest" href="./manifest.json">
-  <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="icon" href="./icons/icon.svg?v=2" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png?v=2">
   <link rel="stylesheet" href="./css/styles.css">
   <link rel="stylesheet" href="./css/print.css">
   <script>
@@ -16,15 +16,26 @@
       var t = localStorage.getItem('nutripro.theme');
       if (t) document.documentElement.dataset.theme = t;
       var pt = localStorage.getItem('nutripro.partner');
-      if (pt === 'bulbasaur' || pt === 'charmander' || pt === 'pikachu') document.documentElement.dataset.partner = pt;
+      if (pt === 'bulbasaur' || pt === 'charmander' || pt === 'squirtle' || pt === 'pikachu') document.documentElement.dataset.partner = pt;
       var sk = localStorage.getItem('nutripro.skin');
       if (sk === 'nutridex' || sk === 'clean') document.documentElement.dataset.skin = sk;
       var st = localStorage.getItem('nutripro.stamps');
       if (st === 'on' || st === 'off') document.documentElement.dataset.stamps = st;
+      var bg = localStorage.getItem('nutripro.bg');
+      if (bg === 'on' || bg === 'off') document.documentElement.dataset.bg = bg;
     } catch (e) {}
   </script>
 </head>
 <body>
+  <div class="dex-bg" aria-hidden="true">
+    <div class="dex-bg-glow"></div>
+    <svg class="dex-bg-ring" viewBox="0 0 200 200" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="100" cy="100" r="92"/>
+      <path d="M8 100h64M128 100h64"/>
+      <circle cx="100" cy="100" r="28"/>
+    </svg>
+    <img id="dex-bg-art" src="./assets/bg/bulbasaur.png" alt="">
+  </div>
   <header class="topbar">
     <div class="top-left">
       <button type="button" class="btn icon key" data-act="drawer" aria-label="Pacientes e backups" title="Pacientes e backups">
@@ -212,6 +223,12 @@
                 <b>Charmander</b>
                 <small>Laranja</small>
               </button>
+              <button type="button" class="partner-btn" data-act="partner" data-partner="squirtle" aria-pressed="false">
+                <span class="pb-frame"><img class="sprite" src="./assets/sprites/squirtle.png" alt="Squirtle" width="44" height="44"></span>
+                <span class="mono">#007</span>
+                <b>Squirtle</b>
+                <small>Azul</small>
+              </button>
               <button type="button" class="partner-btn" data-act="partner" data-partner="pikachu" aria-pressed="false">
                 <span class="pb-frame"><img class="sprite" src="./assets/sprites/pikachu.png" alt="Pikachu" width="44" height="44"></span>
                 <span class="mono">#025</span>
@@ -226,6 +243,13 @@
               <input type="checkbox" id="cfg-stamps" checked>
               <span class="track"></span>
               <b>Exibir Pokémon temáticos nas seções das abas</b>
+            </label>
+          </div>
+          <div class="fld" id="cfg-bg-wrap">
+            <label class="toggle">
+              <input type="checkbox" id="cfg-bg" checked>
+              <span class="track"></span>
+              <b>Exibir plano de fundo temático</b>
             </label>
           </div>
         </div>

@@ -194,6 +194,45 @@ export function pregestationalIMC(ppg, altura) {
   return calcIMC(ppg, altura);
 }
 
+/** % Gordura Corporal: Durnin & Womersley (1974) + Siri (1961). */
+export function calcBodyFatDurninWomersley({ db, dt, dsi, dse, sex, ageYears, weightKg }) {
+  const folds = [db, dt, dsi, dse];
+  if (folds.some((v) => v === null || v === undefined || !Number.isFinite(v) || v <= 0)) {
+    return { valid: false, reason: 'Informe as 4 dobras, sexo e idade' };
+  }
+  if ((sex !== 'Masculino' && sex !== 'Feminino') || ageYears === null || ageYears === undefined || !Number.isFinite(ageYears)) {
+    return { valid: false, reason: 'Informe as 4 dobras, sexo e idade' };
+  }
+  if (ageYears < 17) {
+    return { valid: false, reason: 'Protocolo Durnin & Womersley indicado a partir de 17 anos' };
+  }
+  const sum4 = db + dt + dsi + dse;
+  const L = Math.log10(sum4);
+  if (!Number.isFinite(L)) {
+    return { valid: false, reason: 'Informe as 4 dobras, sexo e idade' };
+  }
+  const isM = sex === 'Masculino';
+  let c, m;
+  if (ageYears <= 19) [c, m] = isM ? [1.162, 0.063] : [1.1549, 0.0678];
+  else if (ageYears <= 29) [c, m] = isM ? [1.1631, 0.0632] : [1.1599, 0.0717];
+  else if (ageYears <= 39) [c, m] = isM ? [1.1422, 0.0544] : [1.1423, 0.0632];
+  else if (ageYears <= 49) [c, m] = isM ? [1.162, 0.07] : [1.1333, 0.0612];
+  else [c, m] = isM ? [1.1715, 0.0779] : [1.1339, 0.0645];
+
+  const density = c - m * L;
+  if (!Number.isFinite(density) || density <= 0) {
+    return { valid: false, reason: 'Valores fora da faixa fisiológica' };
+  }
+  const bodyFatPct = (4.95 / density - 4.5) * 100;
+  if (!Number.isFinite(bodyFatPct) || bodyFatPct < 2 || bodyFatPct > 65) {
+    return { valid: false, reason: 'Valores fora da faixa fisiológica (2%–65%)' };
+  }
+  const hasW = weightKg !== null && weightKg !== undefined && Number.isFinite(weightKg) && weightKg > 0;
+  const fatMassKg = hasW ? weightKg * (bodyFatPct / 100) : null;
+  const leanMassKg = hasW ? weightKg - fatMassKg : null;
+  return { valid: true, sum4, density, bodyFatPct, fatMassKg, leanMassKg };
+}
+
 /** Pacote completo de cálculos antropométricos a partir dos campos brutos. */
 export function anthro(an, sexo, years) {
   const P = parseBRNumber;
@@ -217,6 +256,7 @@ export function anthro(an, sexo, years) {
     ccClass: classifyCC(cc, sexo),
     cmb: calcCMB(cb, dt),
     sum4: sumFolds(db, dt, dsi, dse),
+    bodyFat: calcBodyFatDurninWomersley({ db, dt, dsi, dse, sex: sexo, ageYears: years, weightKg: peso }),
     cpAlert: elderly && cp !== null && cp <= cpLimit ? `CP ≤ ${cpLimit} cm: risco de sarcopenia` : null,
     cpLimit,
   };

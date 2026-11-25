@@ -160,6 +160,8 @@ export function buildSections(p) {
       filled(p.an.dse) && `DSE ${p.an.dse}`, an.sum4 !== null && `Σ4DC ${C.fmt(an.sum4)}`,
     ], ' · ')),
     R('CMB', an.cmb !== null ? `${C.fmt(an.cmb)} cm` : ''),
+    an.bodyFat && an.bodyFat.valid ? R('% Gordura corporal (Durnin & Womersley)', `${C.fmt(an.bodyFat.bodyFatPct)}% · Densidade ${C.fmt(an.bodyFat.density, 4)} g/cm³ · Siri (1961)`) : null,
+    an.bodyFat && an.bodyFat.valid && an.bodyFat.fatMassKg !== null ? R('Massa gorda / MLG', `MG ${C.fmt(an.bodyFat.fatMassKg)} kg · MLG ${C.fmt(an.bodyFat.leanMassKg)} kg`) : null,
     R('Alerta', an.cpAlert),
   ], [
     {
@@ -270,6 +272,11 @@ export function draftDiagnosis(p) {
   if (an.rcq !== null) ant.push(`RCQ de ${C.fmt(an.rcq, 2)}${an.rcqClass && an.rcqClass.tone ? ' (' + (an.rcqClass.tone === 'bad' ? 'risco cardiovascular elevado' : 'sem risco elevado') + ')' : ''}`);
   if (an.variation) ant.push(`variação ponderal de ${an.variation.kg > 0 ? '+' : ''}${C.fmt(an.variation.kg)} kg (${C.fmt(an.variation.pct)}%) em relação ao peso habitual`);
   if (an.cmb !== null) ant.push(`CMB de ${C.fmt(an.cmb)} cm`);
+  if (an.bodyFat && an.bodyFat.valid) {
+    let bfTxt = `%GC de ${C.fmt(an.bodyFat.bodyFatPct)}% (Durnin & Womersley)`;
+    if (an.bodyFat.fatMassKg !== null) bfTxt += ` — MG ${C.fmt(an.bodyFat.fatMassKg)} kg e MLG ${C.fmt(an.bodyFat.leanMassKg)} kg`;
+    ant.push(bfTxt);
+  }
   if (ant.length) parts.push('Avaliação antropométrica: ' + ant.join('; ') + '.');
   if (an.imcClass && an.imcClass.pediatric) parts.push('Classificação do estado nutricional deve seguir Escore-Z / Curvas OMS.');
   if (p.gi.bristol.length) parts.push(`Escala de Bristol: ${bristolText(p.gi.bristol)}.`);

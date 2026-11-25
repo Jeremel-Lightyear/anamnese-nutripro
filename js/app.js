@@ -58,13 +58,15 @@ const SPRITES = {
   munchlax: './assets/sprites/munchlax.png',
 };
 const PARTNERS = {
-  bulbasaur: { name: 'Bulbasaur', num: '#001', src: SPRITES.bulbasaur },
-  charmander: { name: 'Charmander', num: '#004', src: SPRITES.charmander },
-  pikachu: { name: 'Pikachu', num: '#025', src: SPRITES.pikachu },
+  bulbasaur: { name: 'Bulbasaur', num: '#001', src: SPRITES.bulbasaur, bg: './assets/bg/bulbasaur.png' },
+  charmander: { name: 'Charmander', num: '#004', src: SPRITES.charmander, bg: './assets/bg/charmander.png' },
+  squirtle: { name: 'Squirtle', num: '#007', src: SPRITES.squirtle, bg: './assets/bg/squirtle.png' },
+  pikachu: { name: 'Pikachu', num: '#025', src: SPRITES.pikachu, bg: './assets/bg/pikachu.png' },
 };
 let partner = PARTNERS[storage.get(KEYS.partner)] ? storage.get(KEYS.partner) : 'bulbasaur';
 let skin = storage.get(KEYS.skin) === 'clean' ? 'clean' : 'nutridex';
 let stamps = storage.get(KEYS.stamps) !== 'off';
+let bgOn = storage.get(KEYS.bg) !== 'off';
 
 const SVG_RM = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 const SVG_PREV = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>';
@@ -389,6 +391,10 @@ const CALCS = {
     out.push(mcard('CC (cintura)', a.cc !== null ? `${C.fmt(a.cc)} cm` : '—', a.ccClass ? a.ccClass.label : 'Informe a cintura', a.ccClass ? a.ccClass.tone : ''));
     out.push(mcard('CMB', a.cmb !== null ? `${C.fmt(a.cmb)} cm` : '—', 'CB − 0,314 × DT', 'info'));
     out.push(mcard('CP (panturrilha)', a.cp !== null ? `${C.fmt(a.cp)} cm` : '—', a.cpAlert || (a.cp !== null ? 'Sem alerta' : 'Informe a CP'), a.cpAlert ? 'bad' : a.cp !== null ? 'ok' : ''));
+    const bf = a.bodyFat;
+    const bfHP = bf && bf.valid ? Math.min(100, Math.max(10, Math.round((bf.bodyFatPct / 50) * 100))) : null;
+    out.push(mcard('% Gordura (Durnin & Womersley)', bf && bf.valid ? `${C.fmt(bf.bodyFatPct)}%` : '—', bf && bf.valid ? `Densidade: ${C.fmt(bf.density, 4)} g/cm³ · Siri (1961)` : (bf && bf.reason) || 'Informe as 4 dobras, sexo e idade', bf && bf.valid ? 'info' : '', bfHP));
+    out.push(mcard('Massa Gorda / MLG', bf && bf.valid && bf.fatMassKg !== null ? `MG: ${C.fmt(bf.fatMassKg)} kg` : '—', bf && bf.valid && bf.leanMassKg !== null ? `MLG: ${C.fmt(bf.leanMassKg)} kg` : 'Informe o peso atual e as 4 dobras', bf && bf.valid && bf.fatMassKg !== null ? 'ok' : ''));
     out.push('</div>');
     out.push(`<p class="muted small mono">ALTURA: ${a.altura ? C.fmt(a.altura, 2) + ' m' : '—'} · IDADE: ${(ageOf(P) || { text: '—' }).text}</p>`);
     return out.join('');
@@ -437,6 +443,8 @@ function setPartner(id) {
     sp.src = PARTNERS[id].src;
     sp.alt = PARTNERS[id].name;
   }
+  const bg = $('#dex-bg-art');
+  if (bg) bg.src = PARTNERS[id].bg;
   document.querySelectorAll('.partner-btn').forEach((btn) => {
     btn.setAttribute('aria-pressed', String(btn.dataset.partner === id));
   });
@@ -452,8 +460,10 @@ function setSkin(id) {
   });
   const pbox = $('#cfg-partner-box');
   const swrap = $('#cfg-stamps-wrap');
+  const bgwrap = $('#cfg-bg-wrap');
   if (pbox) pbox.hidden = skin !== 'nutridex';
   if (swrap) swrap.hidden = skin !== 'nutridex';
+  if (bgwrap) bgwrap.hidden = skin !== 'nutridex';
 }
 
 function setStamps(on) {
@@ -462,6 +472,14 @@ function setStamps(on) {
   document.documentElement.dataset.stamps = stamps ? 'on' : 'off';
   const chkEl = $('#cfg-stamps');
   if (chkEl) chkEl.checked = stamps;
+}
+
+function setBg(on) {
+  bgOn = !!on;
+  storage.set(KEYS.bg, bgOn ? 'on' : 'off');
+  document.documentElement.dataset.bg = bgOn ? 'on' : 'off';
+  const chkEl = $('#cfg-bg');
+  if (chkEl) chkEl.checked = bgOn;
 }
 
 function setCfgTab(id) {
@@ -1000,6 +1018,9 @@ $('#logo-upload').addEventListener('change', (e) => {
 $('#cfg-stamps').addEventListener('change', (e) => {
   setStamps(e.target.checked);
 });
+$('#cfg-bg').addEventListener('change', (e) => {
+  setBg(e.target.checked);
+});
 
 $('#dlg-settings').addEventListener('input', (e) => {
   const k = e.target.dataset.s;
@@ -1046,6 +1067,7 @@ document.addEventListener('keydown', (e) => {
   setSkin(skin);
   setPartner(partner);
   setStamps(stamps);
+  setBg(bgOn);
   buildNav();
   const cur = storage.get(KEYS.current);
   P = patients.find((p) => p.id === cur) || null;

@@ -1,5 +1,5 @@
 // Service Worker: Network-First com fallback para cache (caminhos relativos)
-const CACHE = 'nutripro-v4';
+const CACHE = 'nutripro-v5';
 const ASSETS = [
   './',
   './index.html',
@@ -23,6 +23,18 @@ const ASSETS = [
   './assets/sprites/chansey.png',
   './assets/sprites/snorlax.png',
   './assets/sprites/munchlax.png',
+  './assets/bg/bulbasaur.png',
+  './assets/bg/charmander.png',
+  './assets/bg/squirtle.png',
+  './assets/bg/pikachu.png',
+  './assets/fonts/nunito-400-latin-ext.woff2',
+  './assets/fonts/nunito-400-latin.woff2',
+  './assets/fonts/nunito-600-latin-ext.woff2',
+  './assets/fonts/nunito-600-latin.woff2',
+  './assets/fonts/nunito-700-latin-ext.woff2',
+  './assets/fonts/nunito-700-latin.woff2',
+  './assets/fonts/nunito-800-latin-ext.woff2',
+  './assets/fonts/nunito-800-latin.woff2',
 ];
 
 self.addEventListener('install', (event) => {

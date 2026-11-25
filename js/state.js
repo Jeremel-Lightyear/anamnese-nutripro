@@ -26,6 +26,7 @@ export const KEYS = {
   partner: 'nutripro.partner',
   skin: 'nutripro.skin',
   stamps: 'nutripro.stamps',
+  bg: 'nutripro.bg',
 };
 export const storage = store;
 

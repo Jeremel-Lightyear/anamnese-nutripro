@@ -2,8 +2,81 @@
    Anamnese NutriPro — 2 Colunas + Skins (NutriDex & Clínico Clean)
    ========================================================================== */
 
+/* latin-ext */
+@font-face {
+  font-family: 'Nunito';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(../assets/fonts/nunito-400-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Nunito';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(../assets/fonts/nunito-400-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Nunito';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(../assets/fonts/nunito-600-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Nunito';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(../assets/fonts/nunito-600-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Nunito';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(../assets/fonts/nunito-700-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Nunito';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(../assets/fonts/nunito-700-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Nunito';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url(../assets/fonts/nunito-800-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Nunito';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url(../assets/fonts/nunito-800-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 :root {
-  --font: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --font: 'Nunito', system-ui, -apple-system, Roboto, Arial, sans-serif;
   --mono: 'Cascadia Mono', 'Consolas', ui-monospace, SFMono-Regular, monospace;
 
   /* NutriDex (Modo Claro — padrão) */
@@ -29,6 +102,7 @@
   --accent-d: #226B42;
   --accent-soft: #E5F4EC;
   --accent-ink: #FFFFFF;
+  --partner-rgb: 46, 139, 87;
 
   --ok: #1E7E4E; --ok-bg: #E5F5EC;
   --warn: #A86408; --warn-bg: #FDF3DF;
@@ -44,10 +118,17 @@
 /* Parceiros NutriDex */
 :root[data-skin="nutridex"][data-partner="charmander"] {
   --accent: #D95D24; --accent-d: #B04514; --accent-soft: #FCECE4; --accent-ink: #FFFFFF;
+  --partner-rgb: 217, 93, 36;
   --focus-ring: 0 0 0 3px rgba(217, 93, 36, .28);
+}
+:root[data-skin="nutridex"][data-partner="squirtle"] {
+  --accent: #0284C7; --accent-d: #0369A1; --accent-soft: #E0F2FE; --accent-ink: #FFFFFF;
+  --partner-rgb: 2, 132, 199;
+  --focus-ring: 0 0 0 3px rgba(2, 132, 199, .28);
 }
 :root[data-skin="nutridex"][data-partner="pikachu"] {
   --accent: #F5C518; --accent-d: #C98A00; --accent-soft: #FEF7D6; --accent-ink: #1C1F26;
+  --partner-rgb: 245, 197, 24;
   --focus-ring: 0 0 0 3px rgba(201, 138, 0, .3);
 }
 
@@ -75,14 +156,16 @@
   --shadow: 3px 3px 0 rgba(0, 0, 0, .35);
   color-scheme: dark;
 }
-:root[data-skin="nutridex"][data-theme="dark"][data-partner="bulbasaur"] { --accent: #38A169; --accent-d: #2E8B57; --accent-soft: #153123; --accent-ink: #FFFFFF; }
-:root[data-skin="nutridex"][data-theme="dark"][data-partner="charmander"] { --accent: #E56B33; --accent-d: #C8521C; --accent-soft: #361F15; --accent-ink: #FFFFFF; }
-:root[data-skin="nutridex"][data-theme="dark"][data-partner="pikachu"] { --accent: #F5C518; --accent-d: #D49E00; --accent-soft: #332B10; --accent-ink: #1C1F26; }
+:root[data-skin="nutridex"][data-theme="dark"][data-partner="bulbasaur"] { --accent: #38A169; --accent-d: #2E8B57; --accent-soft: #153123; --accent-ink: #FFFFFF; --partner-rgb: 56, 161, 105; }
+:root[data-skin="nutridex"][data-theme="dark"][data-partner="charmander"] { --accent: #E56B33; --accent-d: #C8521C; --accent-soft: #361F15; --accent-ink: #FFFFFF; --partner-rgb: 229, 107, 51; }
+:root[data-skin="nutridex"][data-theme="dark"][data-partner="squirtle"] { --accent: #38BDF8; --accent-d: #0EA5E9; --accent-soft: #122E42; --accent-ink: #082032; --partner-rgb: 56, 189, 248; }
+:root[data-skin="nutridex"][data-theme="dark"][data-partner="pikachu"] { --accent: #F5C518; --accent-d: #D49E00; --accent-soft: #332B10; --accent-ink: #1C1F26; --partner-rgb: 245, 197, 24; }
 
 /* ==========================================================================
    Skin Clínico Clean (Modo Claro & Modo Escuro)
    ========================================================================== */
 :root[data-skin="clean"] {
+  --font: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
   --topbar-bg: rgba(255, 255, 255, .94);
   --topbar-hi: transparent;
   --topbar-line: #E2E8E5;
@@ -173,6 +256,62 @@ button, input, select, textarea { font: inherit; color: inherit; }
   letter-spacing: 0.04em;
 }
 .sprite { image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
+
+/* ==========================================================================
+   Plano de Fundo Temático (somente NutriDex + toggle ligado)
+   ========================================================================== */
+.dex-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+:root[data-skin="clean"] .dex-bg,
+:root[data-bg="off"] .dex-bg {
+  display: none;
+}
+.dex-bg-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 88% 86%, rgba(var(--partner-rgb), .08) 0%, rgba(var(--partner-rgb), 0) 48%);
+}
+:root[data-theme="dark"] .dex-bg-glow {
+  background: radial-gradient(circle at 88% 86%, rgba(var(--partner-rgb), .13) 0%, rgba(var(--partner-rgb), 0) 50%);
+}
+.dex-bg-ring {
+  position: absolute;
+  right: -40px;
+  bottom: -40px;
+  width: 390px;
+  height: 390px;
+  color: rgba(var(--partner-rgb), .12);
+}
+:root[data-theme="dark"] .dex-bg-ring {
+  color: rgba(var(--partner-rgb), .14);
+}
+#dex-bg-art {
+  position: absolute;
+  right: 12px;
+  bottom: -14px;
+  width: 340px;
+  height: auto;
+  opacity: .095;
+  transition: opacity .2s ease;
+}
+:root[data-theme="dark"] #dex-bg-art {
+  opacity: .13;
+  filter: saturate(.85);
+}
+@media (min-width: 1200px) {
+  #dex-bg-art { width: 410px; right: 20px; bottom: -18px; }
+  .dex-bg-ring { width: 440px; height: 440px; }
+}
+@media (max-width: 960px) {
+  #dex-bg-art { width: 210px; right: 4px; bottom: -10px; opacity: .065; }
+  :root[data-theme="dark"] #dex-bg-art { opacity: .09; }
+  .dex-bg-ring { width: 240px; height: 240px; right: -24px; bottom: -24px; }
+}
 
 /* ==========================================================================
    Topbar
@@ -326,6 +465,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
    Layout 2 Colunas (Desktop)
    ========================================================================== */
 .workspace {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: 296px minmax(0, 1fr);
   gap: 18px;
@@ -1056,7 +1197,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
   box-shadow: inset 0 0 0 1.5px var(--accent);
 }
 
-.partner-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.partner-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .partner-btn {
   display: flex;
   flex-direction: column;
@@ -1174,4 +1315,21 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
   .step-nav { flex-wrap: wrap; justify-content: center; }
   .step-ind { order: -1; width: 100%; text-align: center; }
 }
+:root[data-skin="nutridex"] .brand strong,
+:root[data-skin="nutridex"] .card-head h2,
+:root[data-skin="nutridex"] .btn.primary,
+:root[data-skin="nutridex"] .tab[aria-selected="true"] .tl b,
+:root[data-skin="nutridex"] .tab .num,
+:root[data-skin="nutridex"] .mcard b,
+:root[data-skin="nutridex"] .hud-cell b {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+:root[data-skin="nutridex"] .tab,
+:root[data-skin="nutridex"] .mcard b,
+:root[data-skin="nutridex"] .hud-cell b,
+:root[data-skin="nutridex"] .pt-pct {
+  font-variant-numeric: tabular-nums;
+}
+
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
