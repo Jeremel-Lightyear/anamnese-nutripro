@@ -271,6 +271,24 @@
     </form>
   </dialog>
 
+  <dialog id="dlg-refs" class="dlg wide">
+    <form method="dialog">
+      <div class="dlg-head">
+        <h2>Diretrizes e Referências</h2>
+        <button type="submit" class="btn icon dlg-x" value="close" aria-label="Fechar">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="dlg-body">
+        <div class="alert info refs-warn">Os parâmetros desta tabela são para <b>adultos</b>. Exames dependentes de método (hormônios, insulina, enzimas, vitaminas) devem sempre ser confrontados com a faixa de referência do laudo do laboratório.</div>
+        <input type="search" id="refs-q" placeholder="Buscar exame, diretriz ou categoria…" aria-label="Buscar referências" autocomplete="off">
+        <div id="refs-body" class="refs-body"></div>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="ex-pop" id="ex-pop" role="dialog" aria-label="Detalhes do exame" hidden></div>
+
   <dialog id="dlg-confirm" class="dlg small">
     <form method="dialog">
       <div class="dlg-head">

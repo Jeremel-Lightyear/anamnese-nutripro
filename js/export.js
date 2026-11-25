@@ -3,7 +3,7 @@ import * as C from './calculations.js';
 import {
   PATOLOGIAS, FAMILIA, SINTOMAS_GI, BUCAL, SEMIO, EQUIP, FREQ_ITEMS, TEA_GATILHOS, TEA_EQUIPE,
 } from './state.js';
-import { LAB_EXAMS, REQUEST_EXAMS } from './exams-data.js';
+import { LAB_EXAMS, REQUEST_EXAMS, labValue, evalExam } from './exams-data.js';
 import { bristolText } from './bristol.js';
 
 const filled = (v) => v !== undefined && v !== null && String(v).trim() !== '';
@@ -176,10 +176,11 @@ export function buildSections(p) {
   LAB_EXAMS.forEach((e) => labRows.push({ id: e.k, label: `${e.n}${e.u ? ' (' + e.u + ')' : ''}` }));
   p.ex.custom.filter((c) => filled(c.nome)).forEach((c) => labRows.push({ id: c.id, label: `${c.nome}${c.unit ? ' (' + c.unit + ')' : ''}` }));
   const labBody = labRows
-    .filter((r) => dates.some((d) => filled(d.v[r.id])))
-    .map((r) => [r.label, ...dates.map((d) => d.v[r.id] || '')]);
+    .filter((r) => dates.some((d) => filled(labValue(d, r.id, labCtx(p)))))
+    .map((r) => [r.label, ...dates.map((d) => labCellText(p, d, r.id))]);
   const sel = selectedExams(p);
-  add('8. Exames Laboratoriais', [R('Exames solicitados', sel.join('; '))], [
+  const altered = alteredExams(p);
+  add('8. Exames Laboratoriais', [R('Exames solicitados', sel.join('; ')), R('Exames alterados (última coleta)', altered.join('; '))], [
     { title: 'Resultados', head: ['Exame', ...dates.map((d, i) => (filled(d.data) ? dt(d.data) : `Coleta ${i + 1}`))], body: labBody, wide: true },
   ]);
 
@@ -197,6 +198,37 @@ export function selectedExams(p) {
   const list = REQUEST_EXAMS.filter((e) => p.ex.req[e.k]).map((e) => e.n);
   String(p.ex.extras || '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean).forEach((s) => list.push(s));
   return list;
+}
+
+// ---------- Exames: valores efetivos, semáforo e alterados ----------
+function labCtx(p) {
+  const a = ageOf(p);
+  return { sex: p.p.sexo, age: a ? a.years : null };
+}
+function labCellText(p, d, key) {
+  const v = labValue(d, key, labCtx(p));
+  if (!v) return '';
+  const s = evalExam(key, v, p.p.sexo);
+  return s && (s.tone === 'warn' || s.tone === 'bad') ? `${v} (${s.label})` : v;
+}
+/** Exames fora do ideal na coleta mais recente em que cada exame aparece. */
+export function alteredExams(p) {
+  const ctx = labCtx(p);
+  const dates = p.ex.dates
+    .map((d, i) => ({ d, i }))
+    .sort((a, b) => (a.d.data || '').localeCompare(b.d.data || '') || a.i - b.i)
+    .map((x) => x.d);
+  const out = [];
+  LAB_EXAMS.forEach((e) => {
+    for (let j = dates.length - 1; j >= 0; j--) {
+      const v = labValue(dates[j], e.k, ctx);
+      if (!v) continue;
+      const s = evalExam(e.k, v, p.p.sexo);
+      if (s && (s.tone === 'warn' || s.tone === 'bad')) out.push(`${e.n} ${v}${e.u ? ' ' + e.u : ''} (${s.label})`);
+      break;
+    }
+  });
+  return out;
 }
 
 // ---------- Resumo textual ----------
@@ -298,6 +330,8 @@ export function draftDiagnosis(p) {
   }
   const sono = C.sleepHours(p.v.dorme, p.v.acorda);
   if (sono && sono.hours < 7) parts.push(`Sono reduzido (${sono.text}).`);
+  const alt = alteredExams(p);
+  if (alt.length) parts.push(`Exames laboratoriais alterados (última coleta): ${alt.join('; ')}.`);
   const goal = C.hydrationGoal(an.peso);
   const agua = C.parseBRNumber(p.a.agua);
   if (goal && agua) {

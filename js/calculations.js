@@ -190,6 +190,19 @@ export function sleepHours(dorme, acorda) {
   return { minutes: min, hours: min / 60, text: m ? `${h}h${String(m).padStart(2, '0')}min` : `${h}h` };
 }
 
+/** TFGe — CKD-EPI 2021 (sem fator raça), mL/min/1,73m². Retorna null se faltar dado. */
+export function ckdEpi2021(scr, ageYears, sex) {
+  if (scr === null || scr === undefined || !Number.isFinite(scr) || scr <= 0) return null;
+  if (ageYears === null || ageYears === undefined || !Number.isFinite(ageYears) || ageYears < 18) return null;
+  if (sex !== 'Masculino' && sex !== 'Feminino') return null;
+  const f = sex === 'Feminino';
+  const kappa = f ? 0.7 : 0.9;
+  const alpha = f ? -0.241 : -0.302;
+  const r = scr / kappa;
+  const v = 142 * Math.pow(Math.min(r, 1), alpha) * Math.pow(Math.max(r, 1), -1.2) * Math.pow(0.9938, ageYears) * (f ? 1.012 : 1);
+  return Number.isFinite(v) ? v : null;
+}
+
 export function pregestationalIMC(ppg, altura) {
   return calcIMC(ppg, altura);
 }

@@ -9,7 +9,7 @@ import {
   exportBackup, importBackup,
 } from './state.js';
 import { renderBristolCards, openPatientMode, bristolText, BRISTOL } from './bristol.js';
-import { LAB_EXAMS, REQUEST_EXAMS, COMBOS } from './exams-data.js';
+import { LAB_EXAMS, REQUEST_EXAMS, COMBOS, LAB_BY_KEY, REFERENCES, refsFor, labValue, isAutoValue, evalExam } from './exams-data.js';
 import { esc, ageOf, anthroOf, buildSummary, buildAnamnesePrint, buildExamesPrint, selectedExams, draftDiagnosis } from './export.js';
 
 // ---------- Estado da aplicação ----------
@@ -76,6 +76,9 @@ const SVG_RM = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stro
 const SVG_PREV = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>';
 const SVG_NEXT = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
 const SVG_CHK = '<svg class="tab-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+
+const SVG_INFO = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>';
+const SVG_BOOK = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2V5z"/><path d="M4 19a2 2 0 012-2h13"/></svg>';
 
 const pokeBadge = (id, tip = '') =>
   `<span class="poke-badge" title="${esc(tip)}" aria-hidden="true"><img class="sprite" src="${SPRITES[id]}" alt="" width="44" height="44"></span>`;
@@ -275,18 +278,50 @@ function tabAntro() {
   ${card('Histórico / Evolução antropométrica', `<button type="button" class="btn primary" data-act="regmed">Registrar medição no histórico</button>${hist}`)}`;
 }
 
+function labCtx2() {
+  const a = ageOf(P);
+  return { sex: P.p.sexo, age: a ? a.years : null };
+}
+function pillHtml(s) {
+  return s ? `<span class="pill ${s.tone}">${esc(s.label)}</span>` : '';
+}
+function labCellHtml(i, key) {
+  const d = P.ex.dates[i];
+  const ctx = labCtx2();
+  const val = labValue(d, key, ctx);
+  const auto = isAutoValue(d, key, ctx);
+  const s = evalExam(key, val, P.p.sexo);
+  return `<td><div class="lcell"><input class="${auto ? 'auto ' : ''}${s ? 'st-' + s.tone : ''}" data-k="ex.dates.${i}.v.${key}" inputmode="decimal" value="${esc(d.v[key] || '')}"${auto ? ` placeholder="${esc(val)}" title="Calculado automaticamente"` : ''}><span class="pill-slot" data-pill="${i}.${key}">${pillHtml(s)}</span></div></td>`;
+}
+/** Atualiza semáforo e valores calculados de uma coluna de data sem recriar a tabela. */
+function refreshLabColumn(i) {
+  const d = P.ex.dates[i];
+  if (!d) return;
+  const ctx = labCtx2();
+  LAB_EXAMS.forEach((e) => {
+    const input = document.querySelector(`[data-k="ex.dates.${i}.v.${e.k}"]`);
+    if (!input) return;
+    const val = labValue(d, e.k, ctx);
+    const auto = isAutoValue(d, e.k, ctx);
+    const s = evalExam(e.k, val, P.p.sexo);
+    input.className = `${auto ? 'auto ' : ''}${s ? 'st-' + s.tone : ''}`.trim();
+    if (auto) {
+      input.placeholder = val;
+      input.title = 'Calculado automaticamente';
+    } else {
+      input.placeholder = '';
+      input.removeAttribute('title');
+    }
+    const slot = document.querySelector(`[data-pill="${i}.${e.k}"]`);
+    if (slot) slot.innerHTML = pillHtml(s);
+  });
+}
+
 function labTable() {
   const dates = P.ex.dates;
   const th = dates.map((d, i) => `<th class="dcol"><input type="date" data-k="ex.dates.${i}.data" value="${esc(d.data)}" aria-label="Data da coleta ${i + 1}">${rmBtn('ex.dates', i)}</th>`).join('');
-  const cell = (i, key, ph = '') => `<td><input data-k="ex.dates.${i}.v.${key}" inputmode="decimal" value="${esc(dates[i].v[key] || '')}"${ph ? ` placeholder="${esc(ph)}"` : ''}></td>`;
-  const rows = LAB_EXAMS.map((e) => `<tr><th class="exn">${e.n}<small>${e.u}</small></th><td class="ref">${e.r}</td>${dates.map((d, i) => {
-    let ph = '';
-    if (e.k === 'homa') {
-      const h = C.homaIR(C.parseBRNumber(d.v.glicemia), C.parseBRNumber(d.v.insulina));
-      ph = h !== null ? `≈ ${C.fmt(h, 2)}` : '';
-    }
-    return cell(i, e.k, ph);
-  }).join('')}</tr>`).join('');
+  const cell = (i, key) => `<td><input data-k="ex.dates.${i}.v.${key}" inputmode="decimal" value="${esc(dates[i].v[key] || '')}"></td>`;
+  const rows = LAB_EXAMS.map((e) => `<tr><th class="exn">${e.n}<small>${e.u}</small></th><td class="ref"><span class="ref-txt">${e.r}</span><span class="src">${esc(e.src)}</span><button type="button" class="info-btn" data-act="exinfo" data-k="${e.k}" aria-label="Detalhes e referência: ${esc(e.n)}" title="Detalhes e referência">${SVG_INFO}</button></td>${dates.map((d, i) => labCellHtml(i, e.k)).join('')}</tr>`).join('');
   const custom = P.ex.custom.map((c, j) => `<tr class="cust"><th class="exn"><input data-k="ex.custom.${j}.nome" value="${esc(c.nome)}" placeholder="Nome do exame"><input class="u" data-k="ex.custom.${j}.unit" value="${esc(c.unit)}" placeholder="unid."></th><td class="ref">${rmBtn('ex.custom', j)}</td>${dates.map((d, i) => cell(i, c.id)).join('')}</tr>`).join('');
   return `<div class="toolbar"><button type="button" class="btn ghost" data-act="add" data-list="ex.dates">+ Adicionar Data</button><button type="button" class="btn ghost" data-act="add" data-list="ex.custom">+ Adicionar exame customizado</button></div>
     <div class="table-wrap labs"><table class="tbl lab"><thead><tr><th>Exame</th><th>Referência</th>${th}</tr></thead><tbody>${rows}${custom}</tbody></table></div>`;
@@ -300,7 +335,7 @@ function reqForm() {
 }
 
 function tabExames() {
-  return card('Exames laboratoriais', `<div class="subtabs"><button type="button" class="${sub === 'reg' ? 'on' : ''}" data-act="sub" data-v="reg">Registro Longitudinal</button><button type="button" class="${sub === 'req' ? 'on' : ''}" data-act="sub" data-v="req">Gerador de Solicitação</button></div>${sub === 'reg' ? labTable() : reqForm()}`, '', { id: 'chansey', tip: '#113 Chansey · Painel Laboratorial' });
+  return card('Exames laboratoriais', `<div class="subtabs"><button type="button" class="${sub === 'reg' ? 'on' : ''}" data-act="sub" data-v="reg">Registro Longitudinal</button><button type="button" class="${sub === 'req' ? 'on' : ''}" data-act="sub" data-v="req">Gerador de Solicitação</button><button type="button" class="refs-btn" data-act="refs">${SVG_BOOK}<span>Diretrizes e Referências</span></button></div>${sub === 'reg' ? labTable() : reqForm()}`, '', { id: 'chansey', tip: '#113 Chansey · Painel Laboratorial' });
 }
 
 function tabDx() {
@@ -785,7 +820,57 @@ function registerHist() {
 
 const CONFIRM_RM = { 'ex.dates': 'Remover esta coluna de data e seus resultados?', 'an.hist': 'Remover esta medição do histórico?', 'dx.evol': 'Remover esta evolução?', 'ex.custom': 'Remover este exame customizado?' };
 
+// ---------- Popover de exame (i) e modal de referências ----------
+let popKey = null;
+function hideExPop() {
+  const pop = $('#ex-pop');
+  if (pop) pop.hidden = true;
+  popKey = null;
+}
+function showExPop(btn, key) {
+  const e = LAB_BY_KEY[key];
+  const pop = $('#ex-pop');
+  if (!e || !pop) return;
+  if (popKey === key && !pop.hidden) return hideExPop();
+  const refs = refsFor(e);
+  pop.innerHTML = `<div class="xp-head"><b>${esc(e.n)}</b><span class="src">${esc(e.src)}</span></div>
+    <dl>
+      <dt>Referência</dt><dd>${esc(e.r)}${e.u ? ' ' + esc(e.u) : ''}</dd>
+      <dt>Cortes completos</dt><dd>${esc(e.cut)}</dd>
+      ${e.note ? `<dt>Observação clínica</dt><dd>${esc(e.note)}</dd>` : ''}
+      <dt>Bibliografia</dt><dd class="xp-bib">${refs.items.map((t) => esc(t)).join('<br>')}</dd>
+    </dl>`;
+  pop.hidden = false;
+  popKey = key;
+  const b = btn.getBoundingClientRect();
+  const w = pop.offsetWidth;
+  const h = pop.offsetHeight;
+  let left = Math.max(8, Math.min(window.innerWidth - w - 8, b.right - w));
+  let top = b.bottom + 6;
+  if (top + h > window.innerHeight - 8) top = Math.max(8, b.top - h - 6);
+  pop.style.left = `${left}px`;
+  pop.style.top = `${top}px`;
+}
+function renderRefs(q = '') {
+  const t = q.trim().toLowerCase();
+  const html = REFERENCES.map((g) => {
+    const exams = LAB_EXAMS.filter((e) => e.cat === g.id);
+    const hit = !t || g.cat.toLowerCase().includes(t) || g.items.some((s) => s.toLowerCase().includes(t)) || exams.some((e) => e.n.toLowerCase().includes(t));
+    if (!hit) return '';
+    return `<section class="ref-group"><h3>${esc(g.cat)}</h3><ul>${g.items.map((s) => `<li>${esc(s)}</li>`).join('')}</ul>${exams.length ? `<p class="ref-exams"><small>Exames da tabela:</small> ${exams.map((e) => `<span class="src">${esc(e.n)}</span>`).join(' ')}</p>` : ''}</section>`;
+  }).join('');
+  $('#refs-body').innerHTML = html || '<p class="muted">Nenhuma referência encontrada para esta busca.</p>';
+}
+$('#refs-q').addEventListener('input', (e) => renderRefs(e.target.value));
+$('#refs-q').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') e.preventDefault();
+});
+window.addEventListener('scroll', hideExPop, true);
+window.addEventListener('resize', hideExPop);
+
 document.addEventListener('click', async (e) => {
+  const popEl = $('#ex-pop');
+  if (popEl && !popEl.hidden && !e.target.closest('#ex-pop') && !e.target.closest('[data-act="exinfo"]')) hideExPop();
   const el = e.target.closest('[data-act]');
   if (!el) return;
   const act = el.dataset.act;
@@ -820,6 +905,14 @@ document.addEventListener('click', async (e) => {
       break;
     case 'partner':
       setPartner(el.dataset.partner);
+      break;
+    case 'exinfo':
+      showExPop(el, el.dataset.k);
+      break;
+    case 'refs':
+      $('#refs-q').value = '';
+      renderRefs('');
+      $('#dlg-refs').showModal();
       break;
     case 'cfg-tab':
       setCfgTab(el.dataset.cfg);
@@ -1004,13 +1097,8 @@ function onField(e) {
   }
   if (k === 'p.sexo' && val !== 'Feminino') P.p.gestante = false;
   if (k === 'gi.bristolAlt' && !val && P.gi.bristol.length > 1) P.gi.bristol = [P.gi.bristol[0]];
-  if (/^ex\.dates\.\d+\.v\.(glicemia|insulina)$/.test(k)) {
-    const i = k.split('.')[2];
-    const d = P.ex.dates[i];
-    const h = C.homaIR(C.parseBRNumber(d.v.glicemia), C.parseBRNumber(d.v.insulina));
-    const cell = document.querySelector(`[data-k="ex.dates.${i}.v.homa"]`);
-    if (cell) cell.placeholder = h !== null ? `≈ ${C.fmt(h, 2)}` : '';
-  }
+  const labCol = /^ex\.dates\.(\d+)\.v\./.exec(k);
+  if (labCol) refreshLabColumn(Number(labCol[1]));
   touch();
   if (rerender) render();
   else refreshCalcs();
@@ -1058,7 +1146,7 @@ $('#logo-upload').addEventListener('change', (e) => {
   reader.readAsDataURL(f);
 });
 
-['#dlg-settings', '#dlg-confirm'].forEach((id) => {
+['#dlg-settings', '#dlg-confirm', '#dlg-refs'].forEach((id) => {
   const d = $(id);
   d.addEventListener('click', (e) => {
     if (e.target === d) d.close('cancel');
@@ -1105,6 +1193,7 @@ $('#file-import').addEventListener('change', async (e) => {
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
+    hideExPop();
     toggleDrawer(false);
     toggleSidebar(false);
   }

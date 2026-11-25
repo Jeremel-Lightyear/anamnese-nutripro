@@ -1,5 +1,5 @@
 // Service Worker: Network-First com fallback para cache (caminhos relativos)
-const CACHE = 'nutripro-v6';
+const CACHE = 'nutripro-v7';
 const ASSETS = [
   './',
   './index.html',

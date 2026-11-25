@@ -1439,4 +1439,102 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
 }
 .ob-clean:hover { color: var(--ink); }
 
+/* ==========================================================================
+   Exames: semáforo, referências e popover
+   ========================================================================== */
+.tbl.lab .dcol { min-width: 118px; }
+.tbl.lab td { vertical-align: top; }
+.lcell { display: grid; gap: 3px; }
+.pill-slot { min-height: 17px; display: block; }
+.pill {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 99px;
+  font-size: .64rem;
+  font-weight: 800;
+  line-height: 1.5;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  user-select: none;
+}
+.pill.ok { background: var(--ok-bg); color: var(--ok); border-color: var(--ok); }
+.pill.warn { background: var(--warn-bg); color: var(--warn); border-color: var(--warn); }
+.pill.bad { background: var(--bad-bg); color: var(--bad); border-color: var(--bad); }
+.pill.neutral { background: var(--surface2); color: var(--muted); border-color: var(--line); font-weight: 700; }
+.tbl.lab input.st-ok { border-color: var(--ok); background: var(--ok-bg); }
+.tbl.lab input.st-warn { border-color: var(--warn); background: var(--warn-bg); }
+.tbl.lab input.st-bad { border-color: var(--bad); background: var(--bad-bg); }
+.tbl.lab input.auto::placeholder { color: var(--ink); opacity: .85; font-style: italic; font-weight: 700; }
+.tbl.lab .ref { min-width: 190px; white-space: normal; }
+.tbl.lab .ref-txt { display: block; }
+.src {
+  display: inline-block;
+  margin-top: 2px;
+  padding: 0 6px;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+  background: var(--surface2);
+  color: var(--muted);
+  font-size: .66rem;
+  font-weight: 700;
+}
+.info-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-left: 4px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  vertical-align: middle;
+  user-select: none;
+}
+.info-btn:hover { color: var(--accent-d); border-color: var(--accent); background: var(--accent-soft); }
+.subtabs .refs-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface2);
+  color: var(--ink);
+  font-size: .8rem;
+  align-self: center;
+}
+.subtabs .refs-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
+.ex-pop {
+  position: fixed;
+  z-index: 120;
+  width: min(380px, calc(100vw - 16px));
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 12px 14px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1.5px solid var(--card-line);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .28);
+  font-size: .84rem;
+}
+.ex-pop[hidden] { display: none; }
+.xp-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.ex-pop dl { margin: 0; display: grid; gap: 4px; }
+.ex-pop dt { font-size: .68rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-top: 4px; }
+.ex-pop dd { margin: 0; line-height: 1.4; }
+.xp-bib { font-size: .76rem; color: var(--muted); }
+.dlg.wide { width: min(720px, 96vw); }
+.refs-warn { font-weight: 600; font-size: .84rem; margin-bottom: 0; }
+.refs-body { display: grid; gap: 12px; max-height: 52vh; overflow-y: auto; padding-right: 4px; }
+.ref-group { padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface2); }
+.ref-group h3 { margin-bottom: 6px; }
+.ref-group ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: .82rem; line-height: 1.4; }
+.ref-exams { margin: 8px 0 0; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.ref-exams .src { margin-top: 0; }
+
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
