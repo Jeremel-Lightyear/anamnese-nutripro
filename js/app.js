@@ -56,12 +56,16 @@ const SPRITES = {
   chansey: './assets/sprites/chansey.png',
   snorlax: './assets/sprites/snorlax.png',
   munchlax: './assets/sprites/munchlax.png',
+  chimchar: './assets/sprites/chimchar.png',
+  mimikyu: './assets/sprites/mimikyu.png',
 };
 const PARTNERS = {
   bulbasaur: { name: 'Bulbasaur', num: '#001', src: SPRITES.bulbasaur, bg: './assets/bg/bulbasaur.png' },
   charmander: { name: 'Charmander', num: '#004', src: SPRITES.charmander, bg: './assets/bg/charmander.png' },
   squirtle: { name: 'Squirtle', num: '#007', src: SPRITES.squirtle, bg: './assets/bg/squirtle.png' },
   pikachu: { name: 'Pikachu', num: '#025', src: SPRITES.pikachu, bg: './assets/bg/pikachu.png' },
+  chimchar: { name: 'Chimchar', num: '#390', src: SPRITES.chimchar, bg: './assets/bg/chimchar.png' },
+  mimikyu: { name: 'Mimikyu', num: '#778', src: SPRITES.mimikyu, bg: './assets/bg/mimikyu.png' },
 };
 let partner = PARTNERS[storage.get(KEYS.partner)] ? storage.get(KEYS.partner) : 'bulbasaur';
 let skin = storage.get(KEYS.skin) === 'clean' ? 'clean' : 'nutridex';
@@ -493,6 +497,38 @@ function setCfgTab(id) {
   if (ui) ui.hidden = !isUi;
 }
 
+// ---------- Onboarding (exibido 1x) ----------
+let obPartner = partner;
+function selectOnboardPartner(id) {
+  if (!PARTNERS[id]) return;
+  obPartner = id;
+  document.querySelectorAll('.ob-card').forEach((b) => {
+    b.setAttribute('aria-pressed', String(b.dataset.partner === id));
+  });
+  const cta = $('#ob-confirm');
+  if (cta) cta.textContent = `Escolher ${PARTNERS[id].name} e começar`;
+  // Preview imediato do tema e fundo atrás do modal
+  document.documentElement.dataset.skin = 'nutridex';
+  setPartner(id);
+}
+function openOnboarding() {
+  const m = $('#onboard-modal');
+  if (!m) return;
+  obPartner = partner;
+  selectOnboardPartner(obPartner);
+  m.classList.remove('closing');
+  m.hidden = false;
+}
+function closeOnboarding() {
+  const m = $('#onboard-modal');
+  if (!m) return;
+  m.classList.add('closing');
+  setTimeout(() => {
+    m.hidden = true;
+    m.classList.remove('closing');
+  }, 180);
+}
+
 function initials(name) {
   const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return '--';
@@ -788,6 +824,20 @@ document.addEventListener('click', async (e) => {
     case 'cfg-tab':
       setCfgTab(el.dataset.cfg);
       break;
+    case 'ob-pick':
+      selectOnboardPartner(el.dataset.partner);
+      break;
+    case 'ob-confirm':
+      setSkin('nutridex');
+      setPartner(obPartner);
+      storage.set(KEYS.onboarding, 'true');
+      closeOnboarding();
+      break;
+    case 'ob-clean':
+      setSkin('clean');
+      storage.set(KEYS.onboarding, 'true');
+      closeOnboarding();
+      break;
     case 'add': {
       const list = el.dataset.list;
       let arr = V(list);
@@ -1073,6 +1123,7 @@ document.addEventListener('keydown', (e) => {
   P = patients.find((p) => p.id === cur) || null;
   render();
   renderDrawer();
+  if (storage.get(KEYS.onboarding) !== 'true') openOnboarding();
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   }

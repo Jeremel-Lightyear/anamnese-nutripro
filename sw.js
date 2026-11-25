@@ -1,5 +1,5 @@
 // Service Worker: Network-First com fallback para cache (caminhos relativos)
-const CACHE = 'nutripro-v5';
+const CACHE = 'nutripro-v6';
 const ASSETS = [
   './',
   './index.html',
@@ -23,10 +23,14 @@ const ASSETS = [
   './assets/sprites/chansey.png',
   './assets/sprites/snorlax.png',
   './assets/sprites/munchlax.png',
+  './assets/sprites/chimchar.png',
+  './assets/sprites/mimikyu.png',
   './assets/bg/bulbasaur.png',
   './assets/bg/charmander.png',
   './assets/bg/squirtle.png',
   './assets/bg/pikachu.png',
+  './assets/bg/chimchar.png',
+  './assets/bg/mimikyu.png',
   './assets/fonts/nunito-400-latin-ext.woff2',
   './assets/fonts/nunito-400-latin.woff2',
   './assets/fonts/nunito-600-latin-ext.woff2',

@@ -16,7 +16,7 @@
       var t = localStorage.getItem('nutripro.theme');
       if (t) document.documentElement.dataset.theme = t;
       var pt = localStorage.getItem('nutripro.partner');
-      if (pt === 'bulbasaur' || pt === 'charmander' || pt === 'squirtle' || pt === 'pikachu') document.documentElement.dataset.partner = pt;
+      if (pt === 'bulbasaur' || pt === 'charmander' || pt === 'squirtle' || pt === 'pikachu' || pt === 'chimchar' || pt === 'mimikyu') document.documentElement.dataset.partner = pt;
       var sk = localStorage.getItem('nutripro.skin');
       if (sk === 'nutridex' || sk === 'clean') document.documentElement.dataset.skin = sk;
       var st = localStorage.getItem('nutripro.stamps');
@@ -235,6 +235,18 @@
                 <b>Pikachu</b>
                 <small>Dourado</small>
               </button>
+              <button type="button" class="partner-btn" data-act="partner" data-partner="chimchar" aria-pressed="false">
+                <span class="pb-frame"><img class="sprite" src="./assets/sprites/chimchar.png" alt="Chimchar" width="44" height="44"></span>
+                <span class="mono">#390</span>
+                <b>Chimchar</b>
+                <small>Coral</small>
+              </button>
+              <button type="button" class="partner-btn" data-act="partner" data-partner="mimikyu" aria-pressed="false">
+                <span class="pb-frame"><img class="sprite" src="./assets/sprites/mimikyu.png" alt="Mimikyu" width="44" height="44"></span>
+                <span class="mono">#778</span>
+                <b>Mimikyu</b>
+                <small>Roxo</small>
+              </button>
             </div>
           </div>
 
@@ -273,6 +285,62 @@
       </div>
     </form>
   </dialog>
+
+  <div class="onboard-overlay" id="onboard-modal" role="dialog" aria-modal="true" aria-labelledby="ob-title" hidden>
+    <div class="onboard-card">
+      <div class="ob-head">
+        <img class="ob-logo" src="./icons/icon.svg?v=2" alt="" width="44" height="44">
+        <div>
+          <h2 id="ob-title">Bem-vindo ao NutriDex</h2>
+          <p>Escolha seu parceiro inicial para personalizar as cores e o visual do seu prontuário. Você poderá trocar depois nas Configurações.</p>
+        </div>
+      </div>
+
+      <div class="ob-grid" role="group" aria-label="Escolher parceiro inicial">
+        <button type="button" class="ob-card" data-act="ob-pick" data-partner="bulbasaur" aria-pressed="true">
+          <span class="pb-frame"><img class="sprite" src="./assets/sprites/bulbasaur.png" alt="Bulbasaur" width="48" height="48"></span>
+          <span class="mono">#001</span>
+          <b>Bulbasaur</b>
+          <small>Verde</small>
+        </button>
+        <button type="button" class="ob-card" data-act="ob-pick" data-partner="charmander" aria-pressed="false">
+          <span class="pb-frame"><img class="sprite" src="./assets/sprites/charmander.png" alt="Charmander" width="48" height="48"></span>
+          <span class="mono">#004</span>
+          <b>Charmander</b>
+          <small>Laranja</small>
+        </button>
+        <button type="button" class="ob-card" data-act="ob-pick" data-partner="squirtle" aria-pressed="false">
+          <span class="pb-frame"><img class="sprite" src="./assets/sprites/squirtle.png" alt="Squirtle" width="48" height="48"></span>
+          <span class="mono">#007</span>
+          <b>Squirtle</b>
+          <small>Azul</small>
+        </button>
+        <button type="button" class="ob-card" data-act="ob-pick" data-partner="pikachu" aria-pressed="false">
+          <span class="pb-frame"><img class="sprite" src="./assets/sprites/pikachu.png" alt="Pikachu" width="48" height="48"></span>
+          <span class="mono">#025</span>
+          <b>Pikachu</b>
+          <small>Dourado</small>
+        </button>
+        <button type="button" class="ob-card" data-act="ob-pick" data-partner="chimchar" aria-pressed="false">
+          <span class="pb-frame"><img class="sprite" src="./assets/sprites/chimchar.png" alt="Chimchar" width="48" height="48"></span>
+          <span class="mono">#390</span>
+          <b>Chimchar</b>
+          <small>Coral</small>
+        </button>
+        <button type="button" class="ob-card" data-act="ob-pick" data-partner="mimikyu" aria-pressed="false">
+          <span class="pb-frame"><img class="sprite" src="./assets/sprites/mimikyu.png" alt="Mimikyu" width="48" height="48"></span>
+          <span class="mono">#778</span>
+          <b>Mimikyu</b>
+          <small>Roxo</small>
+        </button>
+      </div>
+
+      <div class="ob-foot">
+        <button type="button" class="btn primary block ob-cta" id="ob-confirm" data-act="ob-confirm">Escolher Bulbasaur e começar</button>
+        <button type="button" class="ob-clean" data-act="ob-clean">Prefere visual neutro? Entrar no modo Clínico Clean</button>
+      </div>
+    </div>
+  </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
