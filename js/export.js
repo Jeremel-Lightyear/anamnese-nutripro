@@ -54,7 +54,7 @@ export function buildSections(p) {
   const nonePat = p.h.pat.nenhuma && p.h.pat.nenhuma.on;
   const pats = nonePat
     ? ['Nenhuma patologia referida']
-    : PATOLOGIAS.filter(([k]) => k !== 'nenhuma' && p.h.pat[k] && p.h.pat[k].on).map(([, l]) => {
+    : PATOLOGIAS.filter(([k]) => k !== 'nenhuma' && p.h.pat[k] && p.h.pat[k].on).map(([k, l]) => {
         const o = p.h.pat[k] || {};
         return filled(o.obs) ? `${l} [${o.obs}]` : l;
       });
@@ -355,7 +355,7 @@ export function draftDiagnosis(p) {
   if (p.gi.bristol.length) parts.push(`Escala de Bristol: ${bristolText(p.gi.bristol)}.`);
   const pats = p.h.pat.nenhuma && p.h.pat.nenhuma.on
     ? []
-    : PATOLOGIAS.filter(([k]) => k !== 'nenhuma' && p.h.pat[k] && p.h.pat[k].on).map(([, l]) => {
+    : PATOLOGIAS.filter(([k]) => k !== 'nenhuma' && p.h.pat[k] && p.h.pat[k].on).map(([k, l]) => {
         const s = l.replace(/\s*\(.*\)/, '');
         return /^[A-Z]{2,}/.test(s) ? s : s.toLowerCase();
       });
