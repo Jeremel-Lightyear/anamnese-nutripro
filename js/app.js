@@ -6,7 +6,7 @@ import {
   FREQ_OPCOES, FREQ_ITEMS, LOCAIS, URINA,
   TEA_SUPORTE, TEA_SELETIVIDADE, TEA_GATILHOS, TEA_REPERTORIO, TEA_EQUIPE,
   loadSettings, saveSettings, loadPatients, savePatients, createPatient, duplicatePatient, samplePatient,
-  exportBackup, importBackup,
+  exportBackup, importBackup, DEX_ROSTER, DEX_BY_SLUG, dexSpriteSrc, assignNextDex,
 } from './state.js';
 import { renderBristolCards, openPatientMode, bristolText, BRISTOL } from './bristol.js';
 import { LAB_EXAMS, REQUEST_EXAMS, COMBOS, LAB_BY_KEY, REFERENCES, refsFor, examForAge, labAgeBadge, labValue, isAutoValue, labHint, evalExam } from './exams-data.js';
@@ -364,8 +364,9 @@ function tabExames() {
 }
 
 function tabDx() {
-  const ev = P.dx.evol.map((e, i) => `<div class="evol">${inp(`dx.evol.${i}.data`, 'Data', { type: 'date' })}${area(`dx.evol.${i}.texto`, 'Evolução', { cls: 'grow', rows: 3 })}${rmBtn('dx.evol', i)}</div>`).join('');
+  const ev = P.dx.evol.map((e, i) => `<div class="evol-card"><div class="evol-log mono">LOG #${String(P.dx.evol.length - i).padStart(2, '0')} · ${esc(C.fmtDateBR(e.data) || 'Sem data')}</div><div class="evol">${inp(`dx.evol.${i}.data`, 'Data', { type: 'date' })}${area(`dx.evol.${i}.texto`, 'Evolução', { cls: 'grow', rows: 3 })}${rmBtn('dx.evol', i)}</div></div>`).join('');
   return `
+  <div data-calc="dexcard"></div>
   ${card('Diagnóstico nutricional', `${area('dx.diag', 'Diagnóstico', { rows: 6 })}<button type="button" class="btn ghost" data-act="gen">Gerar rascunho automático</button>`, '', { id: partner, tip: `${PARTNERS[partner].num} ${PARTNERS[partner].name} · Diagnóstico e Conduta` })}
   ${card('Conduta dietoterápica', `${area('dx.conduta', 'Plano de ação', { rows: 4 })}${area('dx.metas', 'Metas de curto prazo', { rows: 3 })}${area('dx.orient', 'Orientações', { rows: 3 })}`)}
   ${card('Evolução clínica', `<button type="button" class="btn primary" data-act="add" data-list="dx.evol">+ Nova Evolução</button><div class="list">${ev || '<p class="muted">Nenhuma evolução registrada.</p>'}</div>`)}`;
@@ -486,6 +487,78 @@ const CALCS = {
     out.push(`<p class="muted small mono">ALTURA: ${a.altura ? C.fmt(a.altura, 2) + ' m' : '—'} · IDADE: ${(ageOf(P) || { text: '—' }).text}</p>`);
     return out.join('');
   },
+  dexcard() {
+    if (!P) return '';
+    const age = ageOf(P);
+    const an = anthroOf(P);
+    const hid = C.hydrationGoalForPatient(an.peso, age ? age.years : null, P.p.sexo);
+    const poke = DEX_BY_SLUG[P.dexPokemon] || DEX_ROSTER[0];
+    const dexNum = P.dexNumber || '001';
+    const altTxt = an.altura ? `${C.fmt(an.altura, 2)} m` : '—';
+    const pesoTxt = an.peso !== null ? `${C.fmt(an.peso, 1)} kg` : '—';
+
+    const pills = [];
+    if (age) {
+      const grp = age.years < 12 ? 'Pediátrico' : age.years < 20 ? 'Adolescente' : 'Adulto';
+      pills.push({ label: grp, tone: 'info' });
+    }
+    if (an.pediatric && an.pediatric.byKey && an.pediatric.byKey.imci) {
+      const imci = an.pediatric.byKey.imci;
+      pills.push({ label: `IMC/I Z ${imci.zText} · ${imci.short}`, tone: imci.tone || 'info' });
+    } else if (an.imc !== null) {
+      pills.push({ label: `IMC ${C.fmt(an.imc)}${an.imcClass ? ' · ' + an.imcClass.short : ''}`, tone: (an.imcClass && an.imcClass.tone) || 'info' });
+    }
+    if (hid) pills.push({ label: `${C.fmt(hid.litros, 2)} L/DIA`, tone: 'water' });
+
+    const patTags = [];
+    PATOLOGIAS.forEach(([k, l]) => {
+      if (!P.h.pat[k] || !P.h.pat[k].on) return;
+      if (k === 'dm' && isFilled(P.h.dmTipo)) patTags.push(P.h.dmTipo);
+      else patTags.push(l.replace(/\s*\(.*\)/, ''));
+    });
+    patTags.slice(0, 4).forEach((t) => pills.push({ label: t, tone: '' }));
+
+    const latestEvol = [...(P.dx.evol || [])]
+      .filter((e) => isFilled(e.texto))
+      .sort((a, b) => (b.data || '').localeCompare(a.data || ''))[0];
+    const diagTxt = (P.dx.diag || '').trim();
+    const condTxt = (P.dx.conduta || '').trim();
+    const notesParts = [];
+    if (diagTxt) notesParts.push(`<p><b>Diagnóstico:</b> ${esc(diagTxt)}</p>`);
+    if (condTxt) notesParts.push(`<p><b>Conduta:</b> ${esc(condTxt)}</p>`);
+    if (latestEvol) notesParts.push(`<p><b>Última evolução${latestEvol.data ? ' (' + esc(C.fmtDateBR(latestEvol.data)) + ')' : ''}:</b> ${esc(latestEvol.texto)}</p>`);
+    if (!notesParts.length) notesParts.push('<p class="muted">Preencha o diagnóstico, conduta ou registre uma evolução clínica abaixo para exibir o resumo nesta entrada.</p>');
+
+    return `<section class="dex-card" aria-label="Cartão NutriDex do paciente">
+      <div class="dex-card-head">
+        <div class="dex-head-left">
+          <span class="dex-mini-lens" aria-hidden="true"></span>
+          <span class="dex-mini-leds" aria-hidden="true"><i class="r"></i><i class="y"></i><i class="g"></i></span>
+          <span class="dex-card-num mono">Nº ${esc(dexNum)}</span>
+          <strong class="dex-card-name">${esc(P.p.nome || 'Paciente sem nome')}</strong>
+        </div>
+        <span class="dex-card-tipo">${esc(P.p.tipo || '1ª Consulta')}</span>
+      </div>
+      <div class="dex-card-body">
+        <div class="dex-visor-col">
+          <div class="dex-visor-screen">
+            <button type="button" class="dex-sprite-btn" data-act="pick-poke" title="Trocar Pokémon do paciente" aria-label="Trocar Pokémon do paciente (${esc(poke.name)})">
+              <img class="sprite" src="${dexSpriteSrc(poke.slug)}" alt="${esc(poke.name)}" width="80" height="80">
+              <span class="dex-swap-tip mono">${esc(poke.name)} · trocar</span>
+            </button>
+          </div>
+          <div class="dex-stats mono">ALT ${esc(altTxt)} · PESO ${esc(pesoTxt)}</div>
+        </div>
+        <div class="dex-meta-col">
+          <div class="dex-types">${pills.map((x) => `<span class="dex-pill ${x.tone}">${esc(x.label)}</span>`).join('')}</div>
+        </div>
+      </div>
+      <div class="dex-notes-box">
+        <div class="dex-notes-head mono">ENTRADA CLÍNICA · ${esc(C.fmtDateBR(P.p.data) || 'SEM DATA')}</div>
+        ${notesParts.join('')}
+      </div>
+    </section>`;
+  },
 };
 function refreshCalcs() {
   if (!P) return;
@@ -526,7 +599,7 @@ function setPartner(id) {
   storage.set(KEYS.partner, id);
   document.documentElement.dataset.partner = id;
   const sp = $('#sidebar-sprite');
-  if (sp) {
+  if (sp && !P) {
     sp.src = PARTNERS[id].src;
     sp.alt = PARTNERS[id].name;
   }
@@ -623,6 +696,8 @@ function updateSidebarHUD(overallPct) {
   const av = $('#prof-avatar');
   const pn = $('#prof-name');
   const pt = $('#prof-tipo');
+  const sp = $('#sidebar-sprite');
+  const dn = $('#prof-dex-num');
   const mobLbl = $('#mobile-step-label');
   if (mobLbl) {
     mobLbl.textContent = P ? `${String(tab + 1).padStart(2, '0')} · ${TABS[tab].n}` : 'Etapas & Resumo';
@@ -631,6 +706,11 @@ function updateSidebarHUD(overallPct) {
     if (av) av.textContent = '--';
     if (pn) pn.textContent = 'Nenhum paciente aberto';
     if (pt) pt.textContent = 'Aguardando';
+    if (sp) {
+      sp.src = PARTNERS[partner].src;
+      sp.alt = PARTNERS[partner].name;
+    }
+    if (dn) dn.hidden = true;
     const pp = $('#prof-progress');
     const pb = $('#prof-bar');
     if (pp) pp.textContent = '0%';
@@ -652,6 +732,15 @@ function updateSidebarHUD(overallPct) {
   if (av) av.textContent = initials(P.p.nome);
   if (pn) pn.textContent = nome;
   if (pt) pt.textContent = P.p.tipo || '1ª Consulta';
+  if (sp) {
+    const poke = DEX_BY_SLUG[P.dexPokemon] || DEX_ROSTER[0];
+    sp.src = dexSpriteSrc(poke.slug);
+    sp.alt = poke.name;
+  }
+  if (dn) {
+    dn.textContent = `Nº ${P.dexNumber || '001'}`;
+    dn.hidden = false;
+  }
 
   if (typeof overallPct === 'number') {
     const pp = $('#prof-progress');
@@ -797,8 +886,11 @@ function renderDrawer() {
   $('#plist').innerHTML = list.length
     ? list.map((p) => {
         const a = ageOf(p);
-        const meta = [a ? a.years + ' anos' : '', p.p.sexo, p.p.tipo, 'atual. ' + new Date(p.updatedAt).toLocaleDateString('pt-BR')].filter(Boolean).join(' · ');
-        return `<li class="pitem${P && P.id === p.id ? ' active' : ''}"><button type="button" class="pmain" data-act="open" data-id="${p.id}"><b>${esc(p.p.nome) || 'Sem nome'}</b><small>${esc(meta)}</small></button>
+        const ageTag = !a ? '' : a.years < 12 ? 'Pediátrico' : a.years < 20 ? 'Adolescente' : 'Adulto';
+        const dexNum = p.dexNumber || '001';
+        const pokeSrc = dexSpriteSrc(p.dexPokemon);
+        const meta = [ageTag, a ? a.years + ' anos' : '', p.p.tipo, 'atual. ' + new Date(p.updatedAt).toLocaleDateString('pt-BR')].filter(Boolean).join(' · ');
+        return `<li class="pitem${P && P.id === p.id ? ' active' : ''}"><button type="button" class="pmain" data-act="open" data-id="${p.id}"><div class="pmain-row"><span class="pdex-av" aria-hidden="true"><img class="sprite" src="${pokeSrc}" alt="" width="32" height="32"></span><div class="pdex-txt"><div class="pdex-top"><span class="pdex-num mono">Nº ${esc(dexNum)}</span><b>${esc(p.p.nome) || 'Sem nome'}</b></div><small>${esc(meta)}</small></div></div></button>
           <div class="pact"><button type="button" class="btn mini" data-act="ret" data-id="${p.id}" title="Criar retorno a partir desta ficha">Retorno</button><button type="button" class="btn mini" data-act="dup" data-id="${p.id}">Duplicar</button><button type="button" class="btn mini danger" data-act="del" data-id="${p.id}">Excluir</button></div></li>`;
       }).join('')
     : `<li class="muted empty">${patients.length ? 'Nenhum paciente encontrado.' : 'Nenhum paciente salvo ainda.'}</li>`;
@@ -883,6 +975,15 @@ function registerHist() {
 }
 
 const CONFIRM_RM = { 'ex.dates': 'Remover esta coluna de data e seus resultados?', 'an.hist': 'Remover esta medição do histórico?', 'dx.evol': 'Remover esta evolução?', 'ex.custom': 'Remover este exame customizado?' };
+
+function openPokePicker() {
+  const gridEl = $('#poke-grid');
+  const dlg = $('#dlg-poke');
+  if (!P || !gridEl || !dlg) return;
+  const cur = DEX_BY_SLUG[P.dexPokemon] ? P.dexPokemon : DEX_ROSTER[0].slug;
+  gridEl.innerHTML = DEX_ROSTER.map((d) => `<button type="button" class="poke-opt" data-act="set-patient-poke" data-slug="${d.slug}" aria-pressed="${cur === d.slug}"><img class="sprite" src="${dexSpriteSrc(d.slug)}" alt="${esc(d.name)}" width="48" height="48"><span>${esc(d.name)}</span></button>`).join('');
+  dlg.showModal();
+}
 
 // ---------- Popover de exame (i) e modal de referências ----------
 let popKey = null;
@@ -969,6 +1070,19 @@ document.addEventListener('click', async (e) => {
       break;
     case 'partner':
       setPartner(el.dataset.partner);
+      break;
+    case 'pick-poke':
+      if (!need()) return;
+      openPokePicker();
+      break;
+    case 'set-patient-poke':
+      if (!need()) return;
+      P.dexPokemon = el.dataset.slug;
+      touch();
+      $('#dlg-poke').close();
+      updateSidebarHUD();
+      renderDrawer();
+      if (tab === 8) render();
       break;
     case 'exinfo':
       showExPop(el, el.dataset.k);
@@ -1072,7 +1186,7 @@ document.addEventListener('click', async (e) => {
       toggleDrawer();
       break;
     case 'new':
-      P = createPatient();
+      P = assignNextDex(createPatient(), patients);
       patients.push(P);
       tab = 0;
       touch();
@@ -1080,7 +1194,7 @@ document.addEventListener('click', async (e) => {
       toggleDrawer(false);
       break;
     case 'sample': {
-      const s = samplePatient();
+      const s = assignNextDex(samplePatient(), patients);
       patients.push(s);
       savePatients(patients);
       tab = 0;
@@ -1096,7 +1210,7 @@ document.addEventListener('click', async (e) => {
     case 'dup':
     case 'ret': {
       const src = patients.find((x) => x.id === el.dataset.id);
-      const c = duplicatePatient(src, act === 'ret');
+      const c = assignNextDex(duplicatePatient(src, act === 'ret'), patients);
       patients.push(c);
       savePatients(patients);
       openPatient(c.id);
@@ -1218,7 +1332,7 @@ $('#logo-upload').addEventListener('change', (e) => {
   reader.readAsDataURL(f);
 });
 
-['#dlg-settings', '#dlg-confirm', '#dlg-refs'].forEach((id) => {
+['#dlg-settings', '#dlg-confirm', '#dlg-refs', '#dlg-poke'].forEach((id) => {
   const d = $(id);
   d.addEventListener('click', (e) => {
     if (e.target === d) d.close('cancel');

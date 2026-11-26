@@ -94,13 +94,14 @@
       <!-- Card Compacto do Paciente Ativo -->
       <section class="side-card patient-card" aria-label="Paciente ativo">
         <div class="pt-row">
-          <div class="pt-avatar" aria-hidden="true">
-            <span class="pt-dex-av"><img id="sidebar-sprite" class="sprite" src="./assets/sprites/bulbasaur.png" alt="Bulbasaur" width="40" height="40"></span>
-            <span class="pt-clean-av" id="prof-avatar">--</span>
+          <div class="pt-avatar">
+            <button type="button" class="pt-dex-av" data-act="pick-poke" title="Trocar Pokémon do paciente" aria-label="Trocar Pokémon do paciente"><img id="sidebar-sprite" class="sprite" src="./assets/sprites/dex/bulbasaur.png" alt="Bulbasaur" width="40" height="40"></button>
+            <span class="pt-clean-av" id="prof-avatar" aria-hidden="true">--</span>
           </div>
           <div class="pt-info">
             <strong id="prof-name">Nenhum paciente aberto</strong>
             <div class="pt-sub">
+              <span class="pt-dex-num mono" id="prof-dex-num" hidden>Nº 001</span>
               <span class="prof-badge" id="prof-tipo">Aguardando</span>
               <span class="mono pt-pct" id="prof-progress">0%</span>
             </div>
@@ -300,6 +301,21 @@
       <div class="dlg-body">
         <p id="dlg-msg"></p>
         <div class="actions"><button class="btn ghost" value="cancel">Cancelar</button><button class="btn danger-solid" id="dlg-ok" value="ok">Confirmar</button></div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-poke" class="dlg wide">
+    <form method="dialog">
+      <div class="dlg-head">
+        <h2>Escolher Pokémon do paciente</h2>
+        <button type="submit" class="btn icon dlg-x" value="close" aria-label="Fechar">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="dlg-body">
+        <p class="muted small">Escolha o Pokémon exclusivo deste paciente na skin NutriDex (salvo automaticamente).</p>
+        <div id="poke-grid" class="poke-grid" role="group" aria-label="Selecionar Pokémon do paciente"></div>
       </div>
     </form>
   </dialog>

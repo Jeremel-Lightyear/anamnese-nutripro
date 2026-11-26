@@ -162,6 +162,81 @@ export function deepMerge(target, src) {
   return target;
 }
 
+// ---------- Elenco neutro NutriDex (25 Pokémon clássicos, sem vínculo clínico) ----------
+export const DEX_ROSTER = [
+  { slug: 'bulbasaur', name: 'Bulbasaur' },
+  { slug: 'charmander', name: 'Charmander' },
+  { slug: 'squirtle', name: 'Squirtle' },
+  { slug: 'pikachu', name: 'Pikachu' },
+  { slug: 'eevee', name: 'Eevee' },
+  { slug: 'vulpix', name: 'Vulpix' },
+  { slug: 'jigglypuff', name: 'Jigglypuff' },
+  { slug: 'oddish', name: 'Oddish' },
+  { slug: 'psyduck', name: 'Psyduck' },
+  { slug: 'growlithe', name: 'Growlithe' },
+  { slug: 'poliwag', name: 'Poliwag' },
+  { slug: 'abra', name: 'Abra' },
+  { slug: 'ponyta', name: 'Ponyta' },
+  { slug: 'slowpoke', name: 'Slowpoke' },
+  { slug: 'dratini', name: 'Dratini' },
+  { slug: 'chikorita', name: 'Chikorita' },
+  { slug: 'cyndaquil', name: 'Cyndaquil' },
+  { slug: 'totodile', name: 'Totodile' },
+  { slug: 'togepi', name: 'Togepi' },
+  { slug: 'marill', name: 'Marill' },
+  { slug: 'pichu', name: 'Pichu' },
+  { slug: 'heracross', name: 'Heracross' },
+  { slug: 'treecko', name: 'Treecko' },
+  { slug: 'torchic', name: 'Torchic' },
+  { slug: 'mudkip', name: 'Mudkip' },
+];
+export const DEX_BY_SLUG = Object.fromEntries(DEX_ROSTER.map((d) => [d.slug, d]));
+export const dexSpriteSrc = (slug) => `./assets/sprites/dex/${DEX_BY_SLUG[slug] ? slug : 'bulbasaur'}.png`;
+export const formatDexNumber = (n) => String(Math.max(1, Number(n) || 1)).padStart(3, '0');
+
+export function assignDexEntries(list) {
+  if (!Array.isArray(list) || !list.length) return false;
+  let maxNum = 0;
+  list.forEach((p) => {
+    if (p && /^\d{3,}$/.test(String(p.dexNumber || ''))) {
+      const n = Number(p.dexNumber);
+      if (n > maxNum) maxNum = n;
+    }
+  });
+  let changed = false;
+  list.forEach((p) => {
+    if (!p) return;
+    if (!/^\d{3,}$/.test(String(p.dexNumber || ''))) {
+      maxNum += 1;
+      p.dexNumber = formatDexNumber(maxNum);
+      changed = true;
+    }
+    if (!DEX_BY_SLUG[p.dexPokemon]) {
+      p.dexPokemon = DEX_ROSTER[(Number(p.dexNumber) - 1) % DEX_ROSTER.length].slug;
+      changed = true;
+    }
+  });
+  return changed;
+}
+
+export function assignNextDex(patient, existingList = []) {
+  if (!patient) return patient;
+  let maxNum = 0;
+  (existingList || []).forEach((p) => {
+    if (p && /^\d{3,}$/.test(String(p.dexNumber || ''))) {
+      const n = Number(p.dexNumber);
+      if (n > maxNum) maxNum = n;
+    }
+  });
+  if (!/^\d{3,}$/.test(String(patient.dexNumber || ''))) {
+    patient.dexNumber = formatDexNumber(maxNum + 1);
+  }
+  if (!DEX_BY_SLUG[patient.dexPokemon]) {
+    patient.dexPokemon = DEX_ROSTER[(Number(patient.dexNumber) - 1) % DEX_ROSTER.length].slug;
+  }
+  return patient;
+}
+
 // ---------- Schema ----------
 export function newMeal(nome, extra = false) {
   return { id: uid(), nome, extra, nao: false, hor: '', local: '', desc: '' };
@@ -187,6 +262,7 @@ export function defaultPatient() {
   const now = new Date().toISOString();
   return {
     id: uid(), createdAt: now, updatedAt: now,
+    dexNumber: '', dexPokemon: '',
     p: {
       data: todayISO(), tipo: '1ª Consulta', nome: '', nasc: '', sexo: '', cpf: '', tel: '', cidade: '', prof: '',
       menor: false, mae: '', maeProf: '', pai: '', paiProf: '', gestante: false, ig: '', ppg: '',
@@ -250,6 +326,8 @@ export function duplicatePatient(src, asReturn) {
   c.id = uid();
   c.createdAt = now;
   c.updatedAt = now;
+  c.dexNumber = '';
+  if (!asReturn) c.dexPokemon = '';
   c.p.data = todayISO();
   if (asReturn) {
     c.p.tipo = 'Retorno';
@@ -277,7 +355,10 @@ export function saveSettings(s) {
 export function loadPatients() {
   try {
     const arr = JSON.parse(store.get(KEYS.patients) || '[]');
-    return Array.isArray(arr) ? arr.map(normalizePatient) : [];
+    if (!Array.isArray(arr)) return [];
+    const list = arr.map(normalizePatient);
+    if (assignDexEntries(list) && list.length) savePatients(list);
+    return list;
   } catch {
     return [];
   }
@@ -326,6 +407,7 @@ export function importBackup(text, list) {
       updated++;
     }
   });
+  assignDexEntries(out);
   return { list: out, added, updated, settings };
 }
 
