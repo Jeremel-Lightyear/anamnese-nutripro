@@ -6,11 +6,12 @@ import {
   FREQ_OPCOES, FREQ_ITEMS, LOCAIS, URINA,
   TEA_SUPORTE, TEA_SELETIVIDADE, TEA_GATILHOS, TEA_REPERTORIO, TEA_EQUIPE,
   loadSettings, saveSettings, loadPatients, savePatients, createPatient, duplicatePatient, samplePatient,
-  exportBackup, importBackup, DEX_ROSTER, DEX_BY_SLUG, dexSpriteSrc, assignNextDex,
+  exportBackup, importBackup, DEX_ROSTER, DEX_BY_SLUG, dexSpriteSrc, dexAnimSrc, assignNextDex,
 } from './state.js';
 import { renderBristolCards, openPatientMode, bristolText, BRISTOL } from './bristol.js';
 import { LAB_EXAMS, REQUEST_EXAMS, COMBOS, LAB_BY_KEY, REFERENCES, refsFor, examForAge, labAgeBadge, labValue, isAutoValue, labHint, evalExam } from './exams-data.js';
 import { esc, ageOf, anthroOf, buildSummary, buildAnamnesePrint, buildExamesPrint, selectedExams, draftDiagnosis } from './export.js';
+import { downloadPatientPdf, extractPatientFromPdfBytes } from './pdf-export.js';
 
 // ---------- Estado da aplicação ----------
 let settings = loadSettings();
@@ -81,6 +82,19 @@ const SVG_CHK = '<svg class="tab-check" viewBox="0 0 24 24" width="14" height="1
 const SVG_INFO = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>';
 const SVG_BOOK = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2V5z"/><path d="M4 19a2 2 0 012-2h13"/></svg>';
 
+const pokeImgSrc = (slug) => {
+  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  return reduced ? dexSpriteSrc(slug) : dexAnimSrc(slug);
+};
+const setPokeImg = (img, slug) => {
+  if (!img) return;
+  const fallback = dexSpriteSrc(slug);
+  img.onerror = () => {
+    img.onerror = null;
+    img.src = fallback;
+  };
+  img.src = pokeImgSrc(slug);
+};
 const pokeBadge = (id, tip = '') =>
   `<span class="poke-badge" title="${esc(tip)}" aria-hidden="true"><img class="sprite" src="${SPRITES[id]}" alt="" width="44" height="44"></span>`;
 const card = (title, body, cls = '', stamp = null) =>
@@ -544,7 +558,7 @@ const CALCS = {
         <div class="dex-visor-col">
           <div class="dex-visor-screen">
             <button type="button" class="dex-sprite-btn" data-act="pick-poke" title="Trocar Pokémon do paciente" aria-label="Trocar Pokémon do paciente (${esc(poke.name)})">
-              <img class="sprite" src="${dexSpriteSrc(poke.slug)}" alt="${esc(poke.name)}" width="80" height="80">
+              <img class="sprite" src="${pokeImgSrc(poke.slug)}" onerror="this.onerror=null;this.src='${dexSpriteSrc(poke.slug)}'" alt="${esc(poke.name)}" width="80" height="80">
               <span class="dex-swap-tip mono">${esc(poke.name)} · trocar</span>
             </button>
           </div>
@@ -606,6 +620,7 @@ function setPartner(id) {
   }
   const bg = $('#dex-bg-art');
   if (bg) bg.src = PARTNERS[id].bg;
+  updateMarginStages();
   document.querySelectorAll('.partner-btn').forEach((btn) => {
     btn.setAttribute('aria-pressed', String(btn.dataset.partner === id));
   });
@@ -625,6 +640,7 @@ function setSkin(id) {
   if (pbox) pbox.hidden = skin !== 'nutridex';
   if (swrap) swrap.hidden = skin !== 'nutridex';
   if (bgwrap) bgwrap.hidden = skin !== 'nutridex';
+  updateMarginStages();
 }
 
 function setStamps(on) {
@@ -708,10 +724,12 @@ function updateSidebarHUD(overallPct) {
     if (pn) pn.textContent = 'Nenhum paciente aberto';
     if (pt) pt.textContent = 'Aguardando';
     if (sp) {
+      sp.onerror = null;
       sp.src = PARTNERS[partner].src;
       sp.alt = PARTNERS[partner].name;
     }
     if (dn) dn.hidden = true;
+    updateMarginStages();
     const pp = $('#prof-progress');
     const pb = $('#prof-bar');
     if (pp) pp.textContent = '0%';
@@ -735,13 +753,14 @@ function updateSidebarHUD(overallPct) {
   if (pt) pt.textContent = P.p.tipo || '1ª Consulta';
   if (sp) {
     const poke = DEX_BY_SLUG[P.dexPokemon] || DEX_ROSTER[0];
-    sp.src = dexSpriteSrc(poke.slug);
+    setPokeImg(sp, poke.slug);
     sp.alt = poke.name;
   }
   if (dn) {
     dn.textContent = `Nº ${P.dexNumber || '001'}`;
     dn.hidden = false;
   }
+  updateMarginStages();
 
   if (typeof overallPct === 'number') {
     const pp = $('#prof-progress');
@@ -802,6 +821,28 @@ function updateSidebarHUD(overallPct) {
   }
 }
 
+function updateMarginStages() {
+  const leftEl = $('#dex-stage-left');
+  const rightEl = $('#dex-stage-right');
+  const leftImg = $('#dex-margin-left-img');
+  const rightImg = $('#dex-margin-right-img');
+  if (!leftEl || !rightEl || !leftImg || !rightImg) return;
+  if (skin !== 'nutridex' || !P) {
+    leftEl.hidden = true;
+    rightEl.hidden = true;
+    return;
+  }
+  const activeSlug = DEX_BY_SLUG[P.dexPokemon] ? P.dexPokemon : DEX_ROSTER[0].slug;
+  let rightSlug = DEX_BY_SLUG[partner] ? partner : 'pikachu';
+  if (rightSlug === activeSlug) {
+    rightSlug = ['heracross', 'pikachu', 'eevee', 'bulbasaur'].find((s) => s !== activeSlug) || 'pikachu';
+  }
+  setPokeImg(leftImg, activeSlug);
+  setPokeImg(rightImg, rightSlug);
+  leftEl.hidden = false;
+  rightEl.hidden = false;
+}
+
 function buildNav() {
   $('#tabs').innerHTML = TABS.map((t, i) => `<button type="button" class="tab" role="tab" data-act="tab" data-i="${i}"><span class="num mono">${String(i + 1).padStart(2, '0')}</span><span class="tl"><b>${t.n}</b><small>${t.s}</small></span>${SVG_CHK}</button>`).join('');
 }
@@ -835,8 +876,9 @@ function stepFooter() {
   return `<nav class="step-nav" aria-label="Navegação entre etapas">${prev}<span class="mono step-ind">ETAPA ${String(tab + 1).padStart(2, '0')} / ${String(TABS.length).padStart(2, '0')}</span>${next}</nav>`;
 }
 
-function render() {
+function render(dir = 0) {
   const y = window.scrollY;
+  view.classList.remove('dex-enter-next', 'dex-enter-prev');
   if (!P) {
     view.innerHTML = welcome();
     updateNav();
@@ -844,6 +886,10 @@ function render() {
   }
   if (tab < 0 || tab >= TABS.length) tab = 0;
   view.innerHTML = TABS[tab].render() + stepFooter();
+  if (dir !== 0 && skin === 'nutridex') {
+    void view.offsetWidth;
+    view.classList.add(dir > 0 ? 'dex-enter-next' : 'dex-enter-prev');
+  }
   refreshCalcs();
   updateNav();
   window.scrollTo(0, y);
@@ -1045,21 +1091,25 @@ document.addEventListener('click', async (e) => {
     return !!P;
   };
   switch (act) {
-    case 'tab':
+    case 'tab': {
       if (!need()) return;
-      tab = Number(el.dataset.i);
+      const next = Number(el.dataset.i);
+      const dir = next === tab ? 0 : next > tab ? 1 : -1;
+      tab = next;
       storage.set(KEYS.tab, tab);
-      render();
+      render(dir);
       toggleSidebar(false);
       window.scrollTo(0, 0);
       break;
+    }
     case 'step': {
       if (!need()) return;
-      const next = tab + Number(el.dataset.dir);
+      const d = Number(el.dataset.dir);
+      const next = tab + d;
       if (next < 0 || next >= TABS.length) return;
       tab = next;
       storage.set(KEYS.tab, tab);
-      render();
+      render(d > 0 ? 1 : -1);
       window.scrollTo(0, 0);
       break;
     }
@@ -1177,6 +1227,24 @@ document.addEventListener('click', async (e) => {
       if (!need()) return;
       copyText(buildSummary(P, settings)).then(() => toast('Resumo copiado para a área de transferência.')).catch(() => toast('Não foi possível copiar automaticamente.'));
       break;
+    case 'save-pdf': {
+      if (!need()) return;
+      const btn = $('#btn-save-pdf');
+      const lbl = btn && btn.querySelector('span');
+      const prev = lbl ? lbl.textContent : 'Salvar PDF';
+      if (btn) btn.disabled = true;
+      if (lbl) lbl.textContent = 'Gerando PDF...';
+      try {
+        downloadPatientPdf(P, settings);
+        toast('PDF salvo com sucesso');
+      } catch (err) {
+        toast('Falha ao gerar PDF: ' + (err && err.message ? err.message : 'erro inesperado'));
+      } finally {
+        if (btn) btn.disabled = false;
+        if (lbl) lbl.textContent = prev;
+      }
+      break;
+    }
     case 'print-an':
       if (need()) doPrint('anamnese');
       break;
@@ -1239,6 +1307,9 @@ document.addEventListener('click', async (e) => {
       break;
     case 'import':
       $('#file-import').click();
+      break;
+    case 'import-pdf':
+      $('#file-import-pdf').click();
       break;
     case 'settings':
       ['nome', 'crn', 'clinica', 'end', 'tel'].forEach((k) => (document.querySelector(`[data-s="${k}"]`).value = settings[k] || ''));
@@ -1395,6 +1466,61 @@ $('#file-import').addEventListener('change', async (e) => {
     toast(`Backup importado: ${res.added} novo(s), ${res.updated} atualizado(s).`);
   } catch (err) {
     toast('Falha ao importar: ' + err.message);
+  }
+});
+function askPdfDuplicate(existingName) {
+  return new Promise((res) => {
+    const d = $('#dlg-pdf-dup');
+    const msg = $('#dlg-pdf-msg');
+    if (!d || !msg) return res('copy');
+    msg.textContent = `Já existe uma ficha para "${existingName || 'este paciente'}" neste dispositivo. Deseja atualizar a ficha existente ou importar como nova cópia?`;
+    d.returnValue = '';
+    d.onclose = () => res(d.returnValue || 'cancel');
+    d.showModal();
+  });
+}
+$('#file-import-pdf').addEventListener('change', async (e) => {
+  const f = e.target.files[0];
+  e.target.value = '';
+  if (!f) return;
+  try {
+    const buf = await f.arrayBuffer();
+    const imp = extractPatientFromPdfBytes(buf);
+    const normName = (s) => String(s || '').trim().toLowerCase();
+    const matchIdx = patients.findIndex((x) =>
+      x.id === imp.id || (normName(x.p && x.p.nome) && normName(x.p && x.p.nome) === normName(imp.p && imp.p.nome) && (x.p.nasc || '') === (imp.p.nasc || ''))
+    );
+    let targetId = imp.id;
+    if (matchIdx >= 0) {
+      const choice = await askPdfDuplicate(patients[matchIdx].p.nome || imp.p.nome);
+      if (choice === 'cancel') return;
+      if (choice === 'update') {
+        const keepId = patients[matchIdx].id;
+        const keepDex = patients[matchIdx].dexNumber;
+        imp.id = keepId;
+        if (keepDex) imp.dexNumber = keepDex;
+        imp.updatedAt = new Date().toISOString();
+        patients[matchIdx] = imp;
+        targetId = keepId;
+      } else {
+        imp.id = uid();
+        imp.dexNumber = '';
+        assignNextDex(imp, patients);
+        patients.push(imp);
+        targetId = imp.id;
+      }
+    } else {
+      imp.dexNumber = '';
+      assignNextDex(imp, patients);
+      patients.push(imp);
+      targetId = imp.id;
+    }
+    savePatients(patients);
+    openPatient(targetId);
+    toggleDrawer(false);
+    toast('Paciente importado do PDF com sucesso');
+  } catch (err) {
+    toast(err && err.message ? err.message : 'Falha ao ler PDF.');
   }
 });
 document.addEventListener('keydown', (e) => {
