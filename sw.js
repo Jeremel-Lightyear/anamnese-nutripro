@@ -1,5 +1,5 @@
 // Service Worker: atualização automática (Network-First em app shell + Cache-First em mídia/fontes)
-const CACHE = 'nutripro-v14';
+const CACHE = 'nutripro-v15';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -81,6 +81,11 @@ const MEDIA_ASSETS = [
   './assets/sprites/dex/anim/treecko.gif',
   './assets/sprites/dex/anim/torchic.gif',
   './assets/sprites/dex/anim/mudkip.gif',
+  './assets/sprites/dex/anim/chansey.gif',
+  './assets/sprites/dex/anim/munchlax.gif',
+  './assets/sprites/dex/anim/chimchar.gif',
+  './assets/sprites/dex/anim/snorlax.gif',
+  './assets/sprites/dex/anim/snorlax-sleep.gif',
   './assets/bg/bulbasaur.png',
   './assets/bg/charmander.png',
   './assets/bg/squirtle.png',

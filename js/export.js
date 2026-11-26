@@ -51,11 +51,13 @@ export function buildSections(p) {
   ]);
 
   // 2. HPP
-  const pats = PATOLOGIAS.filter(([k]) => p.h.pat[k] && p.h.pat[k].on).map(([k, l]) => {
-    const o = p.h.pat[k];
-    const name = k === 'dm' && filled(p.h.dmTipo) ? `Diabetes (${p.h.dmTipo})` : l;
-    return filled(o.obs) ? `${name} [${o.obs}]` : name;
-  });
+  const nonePat = p.h.pat.nenhuma && p.h.pat.nenhuma.on;
+  const pats = nonePat
+    ? ['Nenhuma patologia referida']
+    : PATOLOGIAS.filter(([k]) => k !== 'nenhuma' && p.h.pat[k] && p.h.pat[k].on).map(([, l]) => {
+        const o = p.h.pat[k] || {};
+        return filled(o.obs) ? `${l} [${o.obs}]` : l;
+      });
   const fam = FAMILIA.filter(([k]) => p.h.fam[k]).map(([, l]) => l);
   if (filled(p.h.fam.outros)) fam.push(p.h.fam.outros);
   const fem = p.p.sexo === 'Feminino';
@@ -351,11 +353,12 @@ export function draftDiagnosis(p) {
     if (ant.length) parts.push('Avaliação antropométrica: ' + ant.join('; ') + '.');
   }
   if (p.gi.bristol.length) parts.push(`Escala de Bristol: ${bristolText(p.gi.bristol)}.`);
-  const pats = PATOLOGIAS.filter(([k]) => p.h.pat[k] && p.h.pat[k].on).map(([k, l]) => {
-    if (k === 'dm' && filled(p.h.dmTipo)) return `diabetes (${p.h.dmTipo})`;
-    const s = l.replace(/\s*\(.*\)/, '');
-    return /^[A-Z]{2,}/.test(s) ? s : s.toLowerCase();
-  });
+  const pats = p.h.pat.nenhuma && p.h.pat.nenhuma.on
+    ? []
+    : PATOLOGIAS.filter(([k]) => k !== 'nenhuma' && p.h.pat[k] && p.h.pat[k].on).map(([, l]) => {
+        const s = l.replace(/\s*\(.*\)/, '');
+        return /^[A-Z]{2,}/.test(s) ? s : s.toLowerCase();
+      });
   if (pats.length) parts.push(`Condições clínicas: ${pats.join(', ')}.`);
   if (p.h.pat.tea && p.h.pat.tea.on && p.h.tea) {
     const t = p.h.tea;

@@ -35,25 +35,50 @@ export const storage = store;
 export const TAGS_MOTIVO = ['Emagrecimento', 'Hipertrofia/Ganho de peso', 'Reeducação alimentar', 'Controle de patologia', 'Encaminhamento médico', 'Saúde intestinal'];
 
 export const PATOLOGIAS = [
+  ['nenhuma', 'Nenhuma patologia'],
   ['has', 'Hipertensão Arterial'],
-  ['dm', 'Diabetes'],
-  ['dislip', 'Dislipidemia (Colesterol/Triglicerídeos elevados)'],
+  ['dm1', 'Diabetes Mellitus Tipo 1'],
+  ['dm2', 'Diabetes Mellitus Tipo 2'],
+  ['predm', 'Pré-diabetes'],
+  ['dislip', 'Dislipidemia'],
   ['esteat', 'Esteatose Hepática'],
   ['dcv', 'Doença Cardiovascular'],
-  ['tireo', 'Hipotireoidismo / Hipertireoidismo'],
+  ['hipotireo', 'Hipotireoidismo'],
+  ['hipertireo', 'Hipertireoidismo'],
   ['renal', 'Doença Renal'],
-  ['gastrite', 'Gastrite / DRGE (Refluxo)'],
-  ['sii', 'Síndrome do Intestino Irritável / Doença Celíaca'],
-  ['asma', 'Asma / Bronquite'],
-  ['ansdep', 'Ansiedade / Depressão'],
+  ['gastrite', 'Gastrite'],
+  ['drge', 'DRGE (Doença do Refluxo)'],
+  ['refluxo', 'Refluxo (sem diagnóstico de DRGE)'],
+  ['sii', 'Síndrome do Intestino Irritável'],
+  ['celiaca', 'Doença Celíaca'],
+  ['asma', 'Asma'],
+  ['bronquite', 'Bronquite'],
+  ['ansiedade', 'Ansiedade'],
+  ['depressao', 'Depressão'],
   ['sop', 'SOP (Síndrome dos Ovários Policísticos)'],
-  ['osteo', 'Osteoporose / Fratura óssea'],
+  ['osteoporose', 'Osteoporose'],
+  ['fratura', 'Fratura óssea prévia'],
   ['tea', 'TEA (Transtorno do Espectro Autista)'],
   ['tdah', 'TDAH (Transtorno de Déficit de Atenção e Hiperatividade)'],
-  ['cirurg', 'Cirurgias prévias (qual e quando)'],
+  ['cirurg', 'Cirurgias prévias'],
   ['outras', 'Outras'],
 ];
 export const DM_TIPOS = ['Tipo 1', 'Tipo 2', 'Pré-diabetes'];
+
+export function togglePathology(patObj, key, checked) {
+  if (!patObj || !patObj[key]) return;
+  patObj[key].on = !!checked;
+  if (key === 'nenhuma' && checked) {
+    Object.keys(patObj).forEach((k) => {
+      if (k !== 'nenhuma' && patObj[k]) {
+        patObj[k].on = false;
+        patObj[k].obs = '';
+      }
+    });
+  } else if (key !== 'nenhuma' && checked && patObj.nenhuma) {
+    patObj.nenhuma.on = false;
+  }
+}
 
 export const TEA_SUPORTE = ['Nível 1', 'Nível 2', 'Nível 3', 'Em investigação'];
 export const TEA_SELETIVIDADE = ['Ausente', 'Leve', 'Moderada', 'Severa / TARE'];
@@ -191,6 +216,16 @@ export const DEX_ROSTER = [
   { slug: 'mudkip', name: 'Mudkip' },
 ];
 export const DEX_BY_SLUG = Object.fromEntries(DEX_ROSTER.map((d) => [d.slug, d]));
+export const POKE_TYPES = {
+  bulbasaur: 'grass', charmander: 'fire', squirtle: 'water', pikachu: 'electric',
+  eevee: 'normal', vulpix: 'fire', jigglypuff: 'psychic', oddish: 'grass',
+  psyduck: 'water', growlithe: 'fire', poliwag: 'water', abra: 'psychic',
+  ponyta: 'fire', slowpoke: 'water', dratini: 'psychic', chikorita: 'grass',
+  cyndaquil: 'fire', totodile: 'water', togepi: 'psychic', marill: 'water',
+  pichu: 'electric', heracross: 'bug', treecko: 'grass', torchic: 'fire', mudkip: 'water',
+  chansey: 'normal', snorlax: 'sleep', 'snorlax-sleep': 'sleep', munchlax: 'normal',
+  chimchar: 'fire', mimikyu: 'psychic',
+};
 export const dexSpriteSrc = (slug) => `./assets/sprites/dex/${DEX_BY_SLUG[slug] ? slug : 'bulbasaur'}.png`;
 export const dexAnimSrc = (slug) => `./assets/sprites/dex/anim/${DEX_BY_SLUG[slug] ? slug : 'bulbasaur'}.gif`;
 export const formatDexNumber = (n) => String(Math.max(1, Number(n) || 1)).padStart(3, '0');
@@ -315,6 +350,64 @@ export function normalizePatient(raw) {
     if (!m.id) m.id = uid();
   });
   if (!Array.isArray(p.ex.dates) || !p.ex.dates.length) p.ex.dates = [{ data: '', v: {} }];
+  // Migração silenciosa de patologias antigas agrupadas para as 27 individuais
+  const pat = p.h && p.h.pat;
+  if (pat) {
+    if (pat.dm && pat.dm.on) {
+      const t = (p.h.dmTipo || '').toLowerCase();
+      const k = t.includes('1') ? 'dm1' : t.includes('pré') || t.includes('pre') ? 'predm' : 'dm2';
+      pat[k] = { on: true, obs: pat.dm.obs || '' };
+      delete pat.dm;
+    }
+    if (pat.tireo) {
+      if (pat.tireo.on) {
+        const obs = (pat.tireo.obs || '').toLowerCase();
+        const k = obs.includes('hiper') ? 'hipertireo' : 'hipotireo';
+        pat[k] = { on: true, obs: pat.tireo.obs || '' };
+      }
+      delete pat.tireo;
+    }
+    if (pat.ansdep) {
+      if (pat.ansdep.on) {
+        const obs = (pat.ansdep.obs || '').toLowerCase();
+        if (obs.includes('depress')) pat.depressao = { on: true, obs: pat.ansdep.obs || '' };
+        if (obs.includes('ansied') || !obs.includes('depress')) pat.ansiedade = { on: true, obs: pat.ansdep.obs || '' };
+      }
+      delete pat.ansdep;
+    }
+    if (pat.osteo) {
+      if (pat.osteo.on) {
+        const obs = (pat.osteo.obs || '').toLowerCase();
+        const k = obs.includes('frat') && !obs.includes('osteo') ? 'fratura' : 'osteoporose';
+        pat[k] = { on: true, obs: pat.osteo.obs || '' };
+      }
+      delete pat.osteo;
+    }
+    if (pat.gastrite && pat.gastrite.on) {
+      const obs = (pat.gastrite.obs || '').toLowerCase();
+      if (obs.includes('drge') && !obs.includes('gastr')) {
+        pat.drge = { on: true, obs: pat.gastrite.obs || '' };
+        pat.gastrite = { on: false, obs: '' };
+      } else if (obs.includes('reflux') && !obs.includes('gastr')) {
+        pat.refluxo = { on: true, obs: pat.gastrite.obs || '' };
+        pat.gastrite = { on: false, obs: '' };
+      }
+    }
+    if (pat.sii && pat.sii.on) {
+      const obs = (pat.sii.obs || '').toLowerCase();
+      if ((obs.includes('celíac') || obs.includes('celiac')) && !obs.includes('irrit')) {
+        pat.celiaca = { on: true, obs: pat.sii.obs || '' };
+        pat.sii = { on: false, obs: '' };
+      }
+    }
+    if (pat.asma && pat.asma.on) {
+      const obs = (pat.asma.obs || '').toLowerCase();
+      if (obs.includes('bronqu') && !obs.includes('asma')) {
+        pat.bronquite = { on: true, obs: pat.asma.obs || '' };
+        pat.asma = { on: false, obs: '' };
+      }
+    }
+  }
   return p;
 }
 
@@ -430,11 +523,11 @@ export function samplePatient() {
     },
     h: {
       pat: {
-        dm: { on: true, obs: 'Pré-diabetes, diagnóstico há 1 ano' },
+        predm: { on: true, obs: 'Diagnóstico há 1 ano' },
         dislip: { on: true, obs: 'LDL elevado há 2 anos' },
-        tireo: { on: true, obs: 'Hipotireoidismo (Hashimoto) há 5 anos' },
+        hipotireo: { on: true, obs: 'Hashimoto há 5 anos' },
         sop: { on: true, obs: 'Diagnóstico aos 24 anos' },
-        ansdep: { on: true, obs: 'Ansiedade leve, sem medicação' },
+        ansiedade: { on: true, obs: 'Ansiedade leve, sem medicação' },
         cirurg: { on: true, obs: 'Cesárea (2018)' },
       },
       dmTipo: 'Pré-diabetes',

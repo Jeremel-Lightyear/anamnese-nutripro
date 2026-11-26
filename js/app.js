@@ -6,7 +6,7 @@ import {
   FREQ_OPCOES, FREQ_ITEMS, LOCAIS, URINA,
   TEA_SUPORTE, TEA_SELETIVIDADE, TEA_GATILHOS, TEA_REPERTORIO, TEA_EQUIPE,
   loadSettings, saveSettings, loadPatients, savePatients, createPatient, duplicatePatient, samplePatient,
-  exportBackup, importBackup, DEX_ROSTER, DEX_BY_SLUG, dexSpriteSrc, dexAnimSrc, assignNextDex, shouldOpenLauncher,
+  exportBackup, importBackup, DEX_ROSTER, DEX_BY_SLUG, POKE_TYPES, dexSpriteSrc, dexAnimSrc, assignNextDex, shouldOpenLauncher, togglePathology,
 } from './state.js';
 import { renderBristolCards, openPatientMode, bristolText, BRISTOL } from './bristol.js';
 import { LAB_EXAMS, REQUEST_EXAMS, COMBOS, LAB_BY_KEY, REFERENCES, refsFor, examForAge, labAgeBadge, labValue, isAutoValue, labHint, evalExam } from './exams-data.js';
@@ -56,8 +56,21 @@ const SPRITES = {
   squirtle: './assets/sprites/squirtle.png',
   chansey: './assets/sprites/chansey.png',
   snorlax: './assets/sprites/snorlax.png',
+  'snorlax-sleep': './assets/sprites/snorlax.png',
   munchlax: './assets/sprites/munchlax.png',
   chimchar: './assets/sprites/chimchar.png',
+  mimikyu: './assets/sprites/mimikyu.png',
+};
+const MASCOT_ANIM = {
+  bulbasaur: './assets/sprites/dex/anim/bulbasaur.gif',
+  charmander: './assets/sprites/dex/anim/charmander.gif',
+  pikachu: './assets/sprites/dex/anim/pikachu.gif',
+  squirtle: './assets/sprites/dex/anim/squirtle.gif',
+  chansey: './assets/sprites/dex/anim/chansey.gif',
+  snorlax: './assets/sprites/dex/anim/snorlax.gif',
+  'snorlax-sleep': './assets/sprites/dex/anim/snorlax-sleep.gif',
+  munchlax: './assets/sprites/dex/anim/munchlax.gif',
+  chimchar: './assets/sprites/dex/anim/chimchar.gif',
   mimikyu: './assets/sprites/mimikyu.png',
 };
 const PARTNERS = {
@@ -92,8 +105,12 @@ const setPokeImg = (img, slug) => {
   };
   img.src = pokeImgSrc(slug);
 };
-const pokeBadge = (id, tip = '') =>
-  `<span class="poke-badge" title="${esc(tip)}" aria-hidden="true"><img class="sprite" src="${SPRITES[id]}" alt="" width="44" height="44"></span>`;
+const pokeBadge = (id, tip = '') => {
+  const anim = MASCOT_ANIM[id] || SPRITES[id];
+  const fb = SPRITES[id] || SPRITES.bulbasaur;
+  const isSleep = id === 'snorlax-sleep';
+  return `<button type="button" class="poke-badge${isSleep ? ' is-sleep' : ''}" data-act="poke-move" data-slug="${esc(id)}" title="${esc(tip)}" aria-label="${esc(tip || id)}"><img class="sprite" src="${anim}" onerror="this.onerror=null;this.src='${fb}'" alt="" width="40" height="40">${isSleep ? '<span class="zzz-float" aria-hidden="true"><i>z</i><i>Z</i></span>' : ''}</button>`;
+};
 const card = (title, body, cls = '', stamp = null) =>
   `<section class="card ${cls}"><div class="card-head"><h2>${title}</h2>${stamp ? pokeBadge(stamp.id, stamp.tip) : ''}</div>${body}</section>`;
 const grid = (...items) => `<div class="grid">${items.join('')}</div>`;
@@ -161,9 +178,12 @@ function tabHPP() {
   const fem = P.p.sexo === 'Feminino';
   const age = ageOf(P);
   const hideHorm = fem && age && age.years < 9 && !showPedHorm;
-  const pats = PATOLOGIAS.map(([k, l]) => `<div class="pat">${chk('h.pat.' + k + '.on', l, k === 'tea' ? { rr: true } : {})}
-    ${k === 'dm' ? `<select class="dmtipo" data-k="h.dmTipo" aria-label="Tipo de diabetes"><option value="">Tipo…</option>${DM_TIPOS.map((t) => `<option${V('h.dmTipo') === t ? ' selected' : ''}>${t}</option>`).join('')}</select>` : ''}
-    <input class="obs" data-k="h.pat.${k}.obs" value="${esc(V('h.pat.' + k + '.obs'))}" placeholder="${k === 'cirurg' ? 'Qual cirurgia e quando' : 'Há quanto tempo / observações'}"></div>`).join('');
+  const pats = PATOLOGIAS.map(([k, l]) => {
+    const on = !!(P.h.pat[k] && P.h.pat[k].on);
+    const isNone = k === 'nenhuma';
+    const ph = k === 'cirurg' ? 'Qual cirurgia e quando?' : k === 'outras' ? 'Descreva a condição...' : 'Há quanto tempo / observações';
+    return `<label class="pat-card${isNone ? ' is-none' : ''}${on ? ' is-on' : ''}"><div class="pat-top"><input type="checkbox" data-k="h.pat.${k}.on" data-rr="1"${on ? ' checked' : ''}><span class="pat-chk" aria-hidden="true"></span><span class="pat-lbl">${l}</span></div>${!isNone && on ? `<input class="pat-obs" data-k="h.pat.${k}.obs" value="${esc(V('h.pat.' + k + '.obs'))}" placeholder="${ph}">` : ''}</label>`;
+  }).join('');
   const teaOn = !!(P.h.pat.tea && P.h.pat.tea.on);
   const teaBlock = teaOn
     ? card('Nutrição no TEA', `
@@ -230,7 +250,7 @@ function tabRotina() {
     inp('v.dorme', 'Horário que dorme', { type: 'time' }), inp('v.acorda', 'Horário que acorda', { type: 'time' }),
     `<div class="fld"><span>Total de horas de sono</span>${calc('sono')}</div>`,
     seg('v.qualSono', 'Qualidade do sono', ['Reparador', 'Acorda à noite', 'Insônia / Dificuldade para dormir'], { cls: 'full' })
-  ), '', { id: 'snorlax', tip: '#143 Snorlax · Sono e Recuperação' })}
+  ), '', { id: 'snorlax-sleep', tip: '#143 Snorlax · Sono e Recuperação' })}
   ${card('Rotina diária', grid(
     `<div class="split">${seg('v.estuda', 'Estuda?', ['Não', 'Sim'], { rr: true })}${v.estuda === 'Sim' ? inp('v.estudaHor', 'Horário') : ''}</div>`,
     hideAdult ? '' : `<div class="split">${seg('v.trabalha', 'Trabalha?', ['Não', 'Sim'], { rr: true })}${v.trabalha === 'Sim' ? inp('v.trabHor', 'Horário') : ''}</div>`,
@@ -524,9 +544,8 @@ const CALCS = {
 
     const patTags = [];
     PATOLOGIAS.forEach(([k, l]) => {
-      if (!P.h.pat[k] || !P.h.pat[k].on) return;
-      if (k === 'dm' && isFilled(P.h.dmTipo)) patTags.push(P.h.dmTipo);
-      else patTags.push(l.replace(/\s*\(.*\)/, ''));
+      if (k === 'nenhuma' || !P.h.pat[k] || !P.h.pat[k].on) return;
+      patTags.push(l.replace(/\s*\(.*\)/, ''));
     });
     patTags.slice(0, 4).forEach((t) => pills.push({ label: t, tone: '' }));
 
@@ -554,10 +573,12 @@ const CALCS = {
       <div class="dex-card-body">
         <div class="dex-visor-col">
           <div class="dex-visor-screen">
-            <button type="button" class="dex-sprite-btn" data-act="pick-poke" title="Trocar Pokémon do paciente" aria-label="Trocar Pokémon do paciente (${esc(poke.name)})">
-              <img class="sprite" src="${pokeImgSrc(poke.slug)}" onerror="this.onerror=null;this.src='${dexSpriteSrc(poke.slug)}'" alt="${esc(poke.name)}" width="80" height="80">
-              <span class="dex-swap-tip mono">${esc(poke.name)} · trocar</span>
-            </button>
+            <div class="dex-sprite-box">
+              <button type="button" class="dex-sprite-btn" data-act="poke-move" data-slug="${esc(poke.slug)}" title="Clique para ver o golpe de ${esc(poke.name)}" aria-label="${esc(poke.name)}">
+                <img class="sprite" src="${pokeImgSrc(poke.slug)}" onerror="this.onerror=null;this.src='${dexSpriteSrc(poke.slug)}'" alt="${esc(poke.name)}" width="80" height="80">
+              </button>
+              <button type="button" class="dex-swap-btn mono" data-act="pick-poke" title="Trocar Pokémon do paciente">${esc(poke.name)} · trocar</button>
+            </div>
           </div>
           <div class="dex-stats mono">ALT ${esc(altTxt)} · PESO ${esc(pesoTxt)}</div>
         </div>
@@ -811,7 +832,7 @@ function updateSidebarHUD(overallPct) {
   if (P.h.intol === 'Sim') alerts.push({ t: P.h.intolQuais ? `Intol.: ${P.h.intolQuais}` : 'Intolerância', c: 'warn' });
   if (P.h.pat.tea && P.h.pat.tea.on) alerts.push({ t: P.h.tea && P.h.tea.suporte ? `TEA (${P.h.tea.suporte})` : 'TEA', c: 'info' });
   if (P.h.pat.tdah && P.h.pat.tdah.on) alerts.push({ t: 'TDAH', c: 'info' });
-  PATOLOGIAS.filter(([k]) => k !== 'tea' && k !== 'tdah' && P.h.pat[k] && P.h.pat[k].on)
+  PATOLOGIAS.filter(([k]) => k !== 'nenhuma' && k !== 'tea' && k !== 'tdah' && P.h.pat[k] && P.h.pat[k].on)
     .slice(0, 3)
     .forEach(([, l]) => alerts.push({ t: l.replace(/\s*\(.*\)/, ''), c: '' }));
 
@@ -845,6 +866,8 @@ function updateMarginStages() {
   }
   setPokeImg(leftImg, activeSlug);
   setPokeImg(rightImg, rightSlug);
+  leftImg.dataset.slug = activeSlug;
+  rightImg.dataset.slug = rightSlug;
   leftEl.hidden = false;
   rightEl.hidden = false;
 }
@@ -1038,6 +1061,45 @@ function openPokePicker() {
   dlg.showModal();
 }
 
+const moveCooldown = new WeakMap();
+function triggerMoveFX(targetEl, slug) {
+  if (skin !== 'nutridex' || !targetEl) return;
+  const now = Date.now();
+  if (now - (moveCooldown.get(targetEl) || 0) < 450) return;
+  moveCooldown.set(targetEl, now);
+  const type = POKE_TYPES[slug] || 'normal';
+  const hopCls = type === 'sleep' ? 'poke-snore' : 'poke-hop';
+  targetEl.classList.remove('poke-hop', 'poke-snore');
+  void targetEl.offsetWidth;
+  targetEl.classList.add(hopCls);
+  setTimeout(() => targetEl.classList.remove(hopCls), 340);
+
+  const rect = targetEl.getBoundingClientRect();
+  if (!rect.width && !rect.height) return;
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  const layer = document.createElement('div');
+  layer.className = `move-fx-layer type-${type}`;
+  layer.style.left = `${cx}px`;
+  layer.style.top = `${cy}px`;
+  const count = 8;
+  for (let i = 0; i < count; i++) {
+    const ang = (Math.PI * 2 * i) / count + (i % 2 ? 0.18 : -0.12);
+    const dist = 26 + (i % 3) * 10;
+    const dx = Math.round(Math.cos(ang) * dist);
+    const dy = Math.round(Math.sin(ang) * dist - (type === 'sleep' ? 14 : 0));
+    const p = document.createElement('span');
+    p.className = 'mfx-p';
+    p.style.setProperty('--dx', `${dx}px`);
+    p.style.setProperty('--dy', `${dy}px`);
+    p.style.setProperty('--rot', `${Math.round((ang * 180) / Math.PI)}deg`);
+    if (type === 'sleep') p.textContent = i % 2 === 0 ? 'z' : 'Z';
+    layer.appendChild(p);
+  }
+  document.body.appendChild(layer);
+  setTimeout(() => layer.remove(), 580);
+}
+
 // ---------- Popover de exame (i) e modal de referências ----------
 let popKey = null;
 function hideExPop() {
@@ -1128,6 +1190,9 @@ document.addEventListener('click', async (e) => {
     case 'partner':
       setPartner(el.dataset.partner);
       break;
+    case 'poke-move':
+      triggerMoveFX(el, el.dataset.slug || 'bulbasaur');
+      break;
     case 'pick-poke':
       if (!need()) return;
       openPokePicker();
@@ -1140,6 +1205,7 @@ document.addEventListener('click', async (e) => {
       updateSidebarHUD();
       renderDrawer();
       if (tab === 8) render();
+      triggerMoveFX($('#sidebar-sprite'), P.dexPokemon);
       break;
     case 'exinfo':
       showExPop(el, el.dataset.k);
@@ -1392,9 +1458,11 @@ function onField(e) {
   if (t.type === 'radio' && !t.checked) return;
   const val = t.type === 'checkbox' ? t.checked : t.value;
   if (get(P, k) === val) return;
-  set(P, k, val);
+  const patM = /^h\.pat\.([^.]+)\.on$/.exec(k);
+  if (patM) togglePathology(P.h.pat, patM[1], val);
+  else set(P, k, val);
 
-  let rerender = t.dataset.rr === '1' && e.type === 'change';
+  let rerender = (t.dataset.rr === '1' && e.type === 'change') || !!patM;
   if (k === 'p.nasc') {
     const a = ageOf(P);
     if (a && a.years < 18 && !P.p.menor) {
