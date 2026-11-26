@@ -3,7 +3,7 @@ import * as C from './calculations.js';
 import {
   PATOLOGIAS, FAMILIA, SINTOMAS_GI, BUCAL, SEMIO, EQUIP, FREQ_ITEMS, TEA_GATILHOS, TEA_EQUIPE,
 } from './state.js';
-import { LAB_EXAMS, REQUEST_EXAMS, labValue, evalExam } from './exams-data.js';
+import { LAB_EXAMS, REQUEST_EXAMS, labValue, evalExam, labAgeBadge } from './exams-data.js';
 import { bristolText } from './bristol.js';
 
 const filled = (v) => v !== undefined && v !== null && String(v).trim() !== '';
@@ -27,10 +27,10 @@ export function buildSections(p) {
   const age = ageOf(p);
   const an = anthroOf(p);
   const secs = [];
-  const add = (title, rows = [], tables = []) => {
+  const add = (title, rows = [], tables = [], subtitle = '') => {
     const r = rows.filter((x) => x && filled(x[1]));
     const t = tables.filter((x) => x && x.body.length);
-    if (r.length || t.length) secs.push({ title, rows: r, tables: t });
+    if (r.length || t.length) secs.push({ title, subtitle, rows: r, tables: t });
   };
   const R = (l, v) => [l, v];
 
@@ -195,18 +195,19 @@ export function buildSections(p) {
   }
 
   // 8. Exames
+  const ctx8 = labCtx(p);
   const dates = p.ex.dates;
   const labRows = [];
   LAB_EXAMS.forEach((e) => labRows.push({ id: e.k, label: `${e.n}${e.u ? ' (' + e.u + ')' : ''}` }));
   p.ex.custom.filter((c) => filled(c.nome)).forEach((c) => labRows.push({ id: c.id, label: `${c.nome}${c.unit ? ' (' + c.unit + ')' : ''}` }));
   const labBody = labRows
-    .filter((r) => dates.some((d) => filled(labValue(d, r.id, labCtx(p)))))
+    .filter((r) => dates.some((d) => filled(labValue(d, r.id, ctx8))))
     .map((r) => [r.label, ...dates.map((d) => labCellText(p, d, r.id))]);
   const sel = selectedExams(p);
   const altered = alteredExams(p);
   add('8. Exames Laboratoriais', [R('Exames solicitados', sel.join('; ')), R('Exames alterados (última coleta)', altered.join('; '))], [
     { title: 'Resultados', head: ['Exame', ...dates.map((d, i) => (filled(d.data) ? dt(d.data) : `Coleta ${i + 1}`))], body: labBody, wide: true },
-  ]);
+  ], `Referência etária: ${labAgeBadge(ctx8).printLabel}`);
 
   // 9. Dx
   add('9. Diagnóstico Nutricional, Conduta e Evolução', [
@@ -227,12 +228,14 @@ export function selectedExams(p) {
 // ---------- Exames: valores efetivos, semáforo e alterados ----------
 function labCtx(p) {
   const a = ageOf(p);
-  return { sex: p.p.sexo, age: a ? a.years : null };
+  const h = C.parseHeightM(p.an.altura);
+  return { sex: p.p.sexo, age: a ? a.years : null, ageMonths: a ? a.totalMonths : null, heightCm: h ? h * 100 : null };
 }
 function labCellText(p, d, key) {
-  const v = labValue(d, key, labCtx(p));
+  const ctx = labCtx(p);
+  const v = labValue(d, key, ctx);
   if (!v) return '';
-  const s = evalExam(key, v, p.p.sexo);
+  const s = evalExam(key, v, ctx);
   return s && (s.tone === 'warn' || s.tone === 'bad') ? `${v} (${s.label})` : v;
 }
 /** Exames fora do ideal na coleta mais recente em que cada exame aparece. */
@@ -247,7 +250,7 @@ export function alteredExams(p) {
     for (let j = dates.length - 1; j >= 0; j--) {
       const v = labValue(dates[j], e.k, ctx);
       if (!v) continue;
-      const s = evalExam(e.k, v, p.p.sexo);
+      const s = evalExam(e.k, v, ctx);
       if (s && (s.tone === 'warn' || s.tone === 'bad')) out.push(`${e.n} ${v}${e.u ? ' ' + e.u : ''} (${s.label})`);
       break;
     }
@@ -262,6 +265,7 @@ export function buildSummary(p, S = {}) {
   if (filled(S.nome) || filled(S.clinica)) lines.push(`Profissional: ${join([S.nome, S.crn && `CRN ${S.crn}`, S.clinica], ' · ')}`);
   buildSections(p).forEach((s) => {
     lines.push('', `## ${s.title.toUpperCase()}`);
+    if (s.subtitle) lines.push(s.subtitle);
     s.rows.forEach(([l, v]) => lines.push(`${l}: ${String(v).replace(/\r?\n/g, ' / ')}`));
     s.tables.forEach((t) => {
       if (t.title) lines.push(`${t.title}:`);
@@ -296,7 +300,7 @@ export function buildAnamnesePrint(p, S = {}) {
       const tabs = s.tables
         .map((t) => `${t.title ? `<h3>${esc(t.title)}</h3>` : ''}<table class="dt${t.wide ? ' wide' : ''}"><thead><tr>${t.head.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${t.body.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`)
         .join('');
-      return `<section class="pblock"><h2>${esc(s.title)}</h2>${rows}${tabs}</section>`;
+      return `<section class="pblock"><h2>${esc(s.title)}</h2>${s.subtitle ? `<p class="psub">${esc(s.subtitle)}</p>` : ''}${rows}${tabs}</section>`;
     })
     .join('');
   return `<div class="pdoc">${header(S, 'Ficha de Anamnese Nutricional')}${patientBar(p)}${body}

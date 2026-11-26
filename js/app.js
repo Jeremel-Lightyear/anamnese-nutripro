@@ -9,7 +9,7 @@ import {
   exportBackup, importBackup,
 } from './state.js';
 import { renderBristolCards, openPatientMode, bristolText, BRISTOL } from './bristol.js';
-import { LAB_EXAMS, REQUEST_EXAMS, COMBOS, LAB_BY_KEY, REFERENCES, refsFor, labValue, isAutoValue, evalExam } from './exams-data.js';
+import { LAB_EXAMS, REQUEST_EXAMS, COMBOS, LAB_BY_KEY, REFERENCES, refsFor, examForAge, labAgeBadge, labValue, isAutoValue, labHint, evalExam } from './exams-data.js';
 import { esc, ageOf, anthroOf, buildSummary, buildAnamnesePrint, buildExamesPrint, selectedExams, draftDiagnosis } from './export.js';
 
 // ---------- Estado da aplicação ----------
@@ -296,7 +296,8 @@ function tabAntro() {
 
 function labCtx2() {
   const a = ageOf(P);
-  return { sex: P.p.sexo, age: a ? a.years : null };
+  const h = C.parseHeightM(P.an.altura);
+  return { sex: P.p.sexo, age: a ? a.years : null, ageMonths: a ? a.totalMonths : null, heightCm: h ? h * 100 : null };
 }
 function pillHtml(s) {
   return s ? `<span class="pill ${s.tone}">${esc(s.label)}</span>` : '';
@@ -306,8 +307,9 @@ function labCellHtml(i, key) {
   const ctx = labCtx2();
   const val = labValue(d, key, ctx);
   const auto = isAutoValue(d, key, ctx);
-  const s = evalExam(key, val, P.p.sexo);
-  return `<td><div class="lcell"><input class="${auto ? 'auto ' : ''}${s ? 'st-' + s.tone : ''}" data-k="ex.dates.${i}.v.${key}" inputmode="decimal" value="${esc(d.v[key] || '')}"${auto ? ` placeholder="${esc(val)}" title="Calculado automaticamente"` : ''}><span class="pill-slot" data-pill="${i}.${key}">${pillHtml(s)}</span></div></td>`;
+  const s = evalExam(key, val, ctx);
+  const pill = s || labHint(d, key, ctx);
+  return `<td><div class="lcell"><input class="${auto ? 'auto ' : ''}${s ? 'st-' + s.tone : ''}" data-k="ex.dates.${i}.v.${key}" inputmode="decimal" value="${esc(d.v[key] || '')}"${auto ? ` placeholder="${esc(val)}" title="Calculado automaticamente"` : ''}><span class="pill-slot" data-pill="${i}.${key}">${pillHtml(pill)}</span></div></td>`;
 }
 /** Atualiza semáforo e valores calculados de uma coluna de data sem recriar a tabela. */
 function refreshLabColumn(i) {
@@ -319,7 +321,8 @@ function refreshLabColumn(i) {
     if (!input) return;
     const val = labValue(d, e.k, ctx);
     const auto = isAutoValue(d, e.k, ctx);
-    const s = evalExam(e.k, val, P.p.sexo);
+    const s = evalExam(e.k, val, ctx);
+    const pill = s || labHint(d, e.k, ctx);
     input.className = `${auto ? 'auto ' : ''}${s ? 'st-' + s.tone : ''}`.trim();
     if (auto) {
       input.placeholder = val;
@@ -329,15 +332,19 @@ function refreshLabColumn(i) {
       input.removeAttribute('title');
     }
     const slot = document.querySelector(`[data-pill="${i}.${e.k}"]`);
-    if (slot) slot.innerHTML = pillHtml(s);
+    if (slot) slot.innerHTML = pillHtml(pill);
   });
 }
 
 function labTable() {
+  const ctx = labCtx2();
   const dates = P.ex.dates;
   const th = dates.map((d, i) => `<th class="dcol"><input type="date" data-k="ex.dates.${i}.data" value="${esc(d.data)}" aria-label="Data da coleta ${i + 1}">${rmBtn('ex.dates', i)}</th>`).join('');
   const cell = (i, key) => `<td><input data-k="ex.dates.${i}.v.${key}" inputmode="decimal" value="${esc(dates[i].v[key] || '')}"></td>`;
-  const rows = LAB_EXAMS.map((e) => `<tr><th class="exn">${e.n}<small>${e.u}</small></th><td class="ref"><span class="ref-txt">${e.r}</span><span class="src">${esc(e.src)}</span><button type="button" class="info-btn" data-act="exinfo" data-k="${e.k}" aria-label="Detalhes e referência: ${esc(e.n)}" title="Detalhes e referência">${SVG_INFO}</button></td>${dates.map((d, i) => labCellHtml(i, e.k)).join('')}</tr>`).join('');
+  const rows = LAB_EXAMS.map((e) => {
+    const ex = examForAge(e, ctx);
+    return `<tr><th class="exn">${ex.n}<small>${ex.u}</small></th><td class="ref"><span class="ref-txt">${ex.r}</span><span class="src">${esc(ex.src)}</span><button type="button" class="info-btn" data-act="exinfo" data-k="${ex.k}" aria-label="Detalhes e referência: ${esc(ex.n)}" title="Detalhes e referência">${SVG_INFO}</button></td>${dates.map((d, i) => labCellHtml(i, ex.k)).join('')}</tr>`;
+  }).join('');
   const custom = P.ex.custom.map((c, j) => `<tr class="cust"><th class="exn"><input data-k="ex.custom.${j}.nome" value="${esc(c.nome)}" placeholder="Nome do exame"><input class="u" data-k="ex.custom.${j}.unit" value="${esc(c.unit)}" placeholder="unid."></th><td class="ref">${rmBtn('ex.custom', j)}</td>${dates.map((d, i) => cell(i, c.id)).join('')}</tr>`).join('');
   return `<div class="toolbar"><button type="button" class="btn ghost" data-act="add" data-list="ex.dates">+ Adicionar Data</button><button type="button" class="btn ghost" data-act="add" data-list="ex.custom">+ Adicionar exame customizado</button></div>
     <div class="table-wrap labs"><table class="tbl lab"><thead><tr><th>Exame</th><th>Referência</th>${th}</tr></thead><tbody>${rows}${custom}</tbody></table></div>`;
@@ -351,7 +358,9 @@ function reqForm() {
 }
 
 function tabExames() {
-  return card('Exames laboratoriais', `<div class="subtabs"><button type="button" class="${sub === 'reg' ? 'on' : ''}" data-act="sub" data-v="reg">Registro Longitudinal</button><button type="button" class="${sub === 'req' ? 'on' : ''}" data-act="sub" data-v="req">Gerador de Solicitação</button><button type="button" class="refs-btn" data-act="refs">${SVG_BOOK}<span>Diretrizes e Referências</span></button></div>${sub === 'reg' ? labTable() : reqForm()}`, '', { id: 'chansey', tip: '#113 Chansey · Painel Laboratorial' });
+  const badge = labAgeBadge(labCtx2());
+  const ageBar = `<div class="lab-age-bar${badge.isPediatric ? ' ped' : ''}"><span class="lab-age-badge mono">${esc(badge.label)}</span>${badge.hint ? `<small class="muted">${esc(badge.hint)}</small>` : ''}</div>`;
+  return card('Exames laboratoriais', `${ageBar}<div class="subtabs"><button type="button" class="${sub === 'reg' ? 'on' : ''}" data-act="sub" data-v="reg">Registro Longitudinal</button><button type="button" class="${sub === 'req' ? 'on' : ''}" data-act="sub" data-v="req">Gerador de Solicitação</button><button type="button" class="refs-btn" data-act="refs">${SVG_BOOK}<span>Diretrizes e Referências</span></button></div>${sub === 'reg' ? labTable() : reqForm()}`, '', { id: 'chansey', tip: '#113 Chansey · Painel Laboratorial' });
 }
 
 function tabDx() {
@@ -883,7 +892,7 @@ function hideExPop() {
   popKey = null;
 }
 function showExPop(btn, key) {
-  const e = LAB_BY_KEY[key];
+  const e = examForAge(key, labCtx2());
   const pop = $('#ex-pop');
   if (!e || !pop) return;
   if (popKey === key && !pop.hidden) return hideExPop();

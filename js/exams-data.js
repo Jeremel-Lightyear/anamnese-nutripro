@@ -1,5 +1,5 @@
 // Exames: registro longitudinal, referências científicas, semáforo, solicitação e combos rápidos
-import { parseBRNumber, homaIR, ckdEpi2021, fmt } from './calculations.js';
+import { parseBRNumber, homaIR, ckdEpi2021, bedsideSchwartz, fmt } from './calculations.js';
 
 // ---------- Referências bibliográficas (agrupadas por categoria) ----------
 export const REFERENCES = [
@@ -46,6 +46,31 @@ export const REFERENCES = [
       'Brasil. Ministério da Saúde. Orientações para a coleta e análise de dados antropométricos em serviços de saúde: Norma Técnica do SISVAN.',
       'Holliday MA, Segar WE. The maintenance need for water in parenteral fluid therapy. Pediatrics. 1957;19(5):823–832.',
       'Institute of Medicine (IOM). Dietary Reference Intakes for Water, Potassium, Sodium, Chloride, and Sulfate. Washington, DC: National Academies Press; 2005.',
+    ],
+  },
+  {
+    id: 'lipid-ped', cat: 'Perfil Lipídico Pediátrico',
+    items: [
+      'Sociedade Brasileira de Cardiologia (SBC) / Sociedade Brasileira de Pediatria (SBP). Diretriz de Prevenção da Aterosclerose na Infância e Adolescência / Atualização da Diretriz Brasileira de Dislipidemias.',
+    ],
+  },
+  {
+    id: 'renal-ped', cat: 'Função Renal Pediátrica (TFGe)',
+    items: [
+      'Schwartz GJ, Muñoz A, Schneider MF, et al. New equations to estimate GFR in children with CKD (Bedside Schwartz). J Am Soc Nephrol. 2009;20(3):629–637.',
+      'Kidney Disease: Improving Global Outcomes (KDIGO). KDIGO 2024 CKD Guideline.',
+    ],
+  },
+  {
+    id: 'glic-ped', cat: 'Glicemia e HOMA-IR Pediátrico',
+    items: [
+      'Sociedade Brasileira de Diabetes (SBD 2024) / ISPAD Clinical Practice Consensus Guidelines; avaliação de HOMA-IR condicionada ao estadiamento puberal de Tanner.',
+    ],
+  },
+  {
+    id: 'caliper', cat: 'Intervalos Pediátricos de Crescimento',
+    items: [
+      'Adeli K et al. CALIPER Database — Pediatric Reference Intervals (CSCC/AACC) e recomendações da SBP.',
     ],
   },
   {
@@ -190,7 +215,309 @@ export const refsFor = (exam) => REFERENCES.find((r) => r.id === exam.cat) || RE
 
 const has = (s) => s !== undefined && s !== null && String(s).trim() !== '';
 
-/** Valor efetivo: digitado manualmente ou calculado (HOMA-IR, não-HDL, TFGe). ctx = { sex, age } */
+/** Badge de protocolo etário ativo para a Aba 8 e impressão A4. */
+export function labAgeBadge(ctx = {}) {
+  const age = ctx && ctx.age !== null && ctx.age !== undefined && Number.isFinite(ctx.age) ? ctx.age : null;
+  if (age === null) {
+    return {
+      protocol: 'Adulto',
+      label: 'Parâmetros ativos: Adulto',
+      hint: 'Informar data de nascimento para ajuste etário',
+      printLabel: 'Adulto',
+      isPediatric: false,
+      missingDob: true,
+    };
+  }
+  const months = ctx.ageMonths !== null && ctx.ageMonths !== undefined && Number.isFinite(ctx.ageMonths) ? ctx.ageMonths : age * 12;
+  if (age < 12) {
+    const ageDisp = age < 2 ? `${Math.floor(months)} meses` : `${age} anos`;
+    return {
+      protocol: 'Pediátrico',
+      label: `Parâmetros ativos: Pediátrico (${ageDisp})`,
+      hint: '',
+      printLabel: `Pediátrico · ${ageDisp}`,
+      isPediatric: true,
+      missingDob: false,
+    };
+  }
+  if (age < 20) {
+    return {
+      protocol: 'Adolescente',
+      label: `Parâmetros ativos: Adolescente (${age} anos)`,
+      hint: '',
+      printLabel: `Adolescente · ${age} anos`,
+      isPediatric: true,
+      missingDob: false,
+    };
+  }
+  return {
+    protocol: 'Adulto',
+    label: `Parâmetros ativos: Adulto (${age} anos)`,
+    hint: '',
+    printLabel: `Adulto · ${age} anos`,
+    isPediatric: false,
+    missingDob: false,
+  };
+}
+
+/** Retorna definição do exame adaptada à idade do paciente (preservando id `k`). */
+export function examForAge(examOrKey, ctx = {}) {
+  const e = typeof examOrKey === 'string' ? LAB_BY_KEY[examOrKey] : examOrKey;
+  if (!e) return null;
+  const years = ctx && ctx.age !== null && ctx.age !== undefined && Number.isFinite(ctx.age) ? ctx.age : null;
+  if (years === null) return e;
+  const months = ctx.ageMonths !== null && ctx.ageMonths !== undefined && Number.isFinite(ctx.ageMonths) ? ctx.ageMonths : years * 12;
+
+  switch (e.k) {
+    case 'hemoglobina':
+      if (months < 6) {
+        return {
+          ...e, r: 'Faixa etária lactente (ver laudo)', sexDep: false,
+          note: 'Em lactentes < 6 meses a hemoglobina varia rapidamente; confrontar com o laudo.',
+          cut: 'Menor de 6 meses: confrontar com faixa etária do laudo.',
+          ev: () => ['Conferir laudo', 'neutral'],
+        };
+      }
+      if (months < 24) {
+        return {
+          ...e, r: '≥ 10,5', sexDep: false,
+          note: 'Corte OMS 2024 para 6–23 meses: anemia < 10,5 g/dL.',
+          cut: 'Normal ≥ 10,5 · Baixo / Anemia < 10,5 g/dL (6–23 meses, OMS 2024).',
+          ev: (v) => (v < 10.5 ? LOW : OK),
+        };
+      }
+      if (months < 60) {
+        return {
+          ...e, r: '≥ 11,0', sexDep: false,
+          note: 'Corte OMS 2024 para 2–4 anos (24–59 meses): anemia < 11,0 g/dL.',
+          cut: 'Normal ≥ 11,0 · Baixo / Anemia < 11,0 g/dL (2–4 anos, OMS 2024).',
+          ev: (v) => (v < 11.0 ? LOW : OK),
+        };
+      }
+      if (years <= 11) {
+        return {
+          ...e, r: '≥ 11,5', sexDep: false,
+          note: 'Corte OMS 2024 para 5–11 anos: anemia < 11,5 g/dL.',
+          cut: 'Normal ≥ 11,5 · Baixo / Anemia < 11,5 g/dL (5–11 anos, OMS 2024).',
+          ev: (v) => (v < 11.5 ? LOW : OK),
+        };
+      }
+      if (years <= 14) {
+        return {
+          ...e, r: '≥ 12,0', sexDep: false,
+          note: 'Corte OMS 2024 para 12–14 anos: anemia < 12,0 g/dL.',
+          cut: 'Normal ≥ 12,0 · Baixo / Anemia < 12,0 g/dL (12–14 anos, OMS 2024).',
+          ev: (v) => (v < 12.0 ? LOW : OK),
+        };
+      }
+      return e;
+
+    case 'ferritina':
+      if (years < 5) {
+        return {
+          ...e, r: '≥ 12 (deficiência < 12)', sexDep: false,
+          note: 'Deficiência de ferro < 12 µg/L em crianças < 5 anos saudáveis ou < 30 µg/L na presença de inflamação/infecção.',
+          cut: 'Normal ≥ 12 · Baixo / Deficiência < 12 µg/L (< 5 anos). Na presença de inflamação: < 30 µg/L.',
+          ev: (v) => (v < 12 ? LOW : v > 150 ? HIGH : OK),
+        };
+      }
+      if (years < 18) {
+        return {
+          ...e, r: '≥ 15 (deficiência < 15)', sexDep: false,
+          note: 'Deficiência de ferro < 15 µg/L em ≥ 5 anos saudáveis ou < 70 µg/L na presença de inflamação/infecção.',
+          cut: 'Normal ≥ 15 · Baixo / Deficiência < 15 µg/L (≥ 5 anos). Na presença de inflamação: < 70 µg/L.',
+          ev: (v) => (v < 15 ? LOW : v > 150 ? HIGH : OK),
+        };
+      }
+      return e;
+
+    case 'colt':
+      if (years >= 2 && years <= 19) {
+        return {
+          ...e, r: '< 170', src: 'SBC / SBP', cat: 'lipid-ped',
+          note: 'Perfil lipídico pediátrico (2–19 anos, SBC/SBP).',
+          cut: 'Normal < 170 · Limítrofe 170–199 · Alto ≥ 200 mg/dL (2–19 anos).',
+          ev: (v) => (v < 170 ? OK : v < 200 ? WARN('Limítrofe') : HIGH),
+        };
+      }
+      return e;
+
+    case 'hdl':
+      if (years >= 2 && years <= 19) {
+        return {
+          ...e, r: '> 45', src: 'SBC / SBP', cat: 'lipid-ped',
+          note: 'Perfil lipídico pediátrico (2–19 anos, SBC/SBP).',
+          cut: 'Normal > 45 · Limítrofe 40–45 · Baixo < 40 mg/dL (2–19 anos).',
+          ev: (v) => (v > 45 ? OK : v >= 40 ? WARN('Limítrofe') : LOW),
+        };
+      }
+      return e;
+
+    case 'ldl':
+      if (years >= 2 && years <= 19) {
+        return {
+          ...e, r: '< 110', src: 'SBC / SBP', cat: 'lipid-ped',
+          note: 'Perfil lipídico pediátrico (2–19 anos, SBC/SBP).',
+          cut: 'Normal < 110 · Limítrofe 110–129 · Alto ≥ 130 mg/dL (2–19 anos).',
+          ev: (v) => (v < 110 ? OK : v < 130 ? WARN('Limítrofe') : HIGH),
+        };
+      }
+      return e;
+
+    case 'naohdl':
+      if (years >= 2 && years <= 19) {
+        return {
+          ...e, r: '< 120', src: 'SBC / SBP', cat: 'lipid-ped',
+          note: 'Calculado automaticamente: colesterol total − HDL. Cortes pediátricos (2–19 anos, SBC/SBP).',
+          cut: 'Normal < 120 · Limítrofe 120–144 · Alto ≥ 145 mg/dL (2–19 anos).',
+          ev: (v) => (v < 120 ? OK : v < 145 ? WARN('Limítrofe') : HIGH),
+        };
+      }
+      return e;
+
+    case 'tg':
+      if (years <= 9) {
+        return {
+          ...e, r: '< 75 (jejum) · < 85 (sem jejum)', src: 'SBC / SBP', cat: 'lipid-ped',
+          note: 'Cortes pediátricos para 0–9 anos (SBC/SBP): jejum < 75 mg/dL; sem jejum < 85 mg/dL.',
+          cut: 'Jejum (0–9 anos): Normal < 75 · Limítrofe 75–99 · Alto ≥ 100 mg/dL. Sem jejum: < 85 mg/dL.',
+          ev: (v) => (v < 75 ? OK : v < 100 ? WARN('Limítrofe') : HIGH),
+        };
+      }
+      if (years <= 19) {
+        return {
+          ...e, r: '< 90 (jejum) · < 100 (sem jejum)', src: 'SBC / SBP', cat: 'lipid-ped',
+          note: 'Cortes pediátricos para 10–19 anos (SBC/SBP): jejum < 90 mg/dL; sem jejum < 100 mg/dL.',
+          cut: 'Jejum (10–19 anos): Normal < 90 · Limítrofe 90–129 · Alto ≥ 130 mg/dL. Sem jejum: < 100 mg/dL.',
+          ev: (v) => (v < 90 ? OK : v < 130 ? WARN('Limítrofe') : HIGH),
+        };
+      }
+      return e;
+
+    case 'tfge':
+      if (years < 18) {
+        return {
+          ...e, src: 'Schwartz 2009 / KDIGO', cat: 'renal-ped',
+          note: years < 1
+            ? 'Equação de Schwartz modificada indicada para 1–17 anos; em < 1 ano confrontar com referência neonatal.'
+            : 'Equação de Schwartz Modificada (Bedside Schwartz, 2009): 0,413 × estatura (cm) / creatinina. Requer estatura na Aba 7.',
+          cut: 'Normal ≥ 90 · Atenção 60–89 · Baixo / DRC < 60 mL/min/1,73m² (Bedside Schwartz 2009 / KDIGO 2024).',
+        };
+      }
+      return e;
+
+    case 'creatinina':
+      if (years < 1) {
+        return {
+          ...e, r: 'Faixa etária lactente (ver laudo)', src: 'CALIPER / SBP', cat: 'renal-ped', sexDep: false,
+          note: 'Conferir faixa etária do laudo (CALIPER/SBP).',
+          cut: 'Lactentes < 1 ano: conferir faixa etária do laudo (CALIPER/SBP).',
+          ev: () => ['Conferir laudo', 'neutral'],
+        };
+      }
+      if (years <= 2) {
+        return {
+          ...e, r: '0,20–0,45', src: 'CALIPER / SBP', cat: 'renal-ped', sexDep: false,
+          note: 'Conferir faixa etária do laudo (CALIPER/SBP).',
+          cut: '1–2 anos: 0,20–0,45 mg/dL. Conferir faixa etária do laudo (CALIPER/SBP).',
+          ev: rng(0.2, 0.45),
+        };
+      }
+      if (years <= 5) {
+        return {
+          ...e, r: '0,25–0,55', src: 'CALIPER / SBP', cat: 'renal-ped', sexDep: false,
+          note: 'Conferir faixa etária do laudo (CALIPER/SBP).',
+          cut: '3–5 anos: 0,25–0,55 mg/dL. Conferir faixa etária do laudo (CALIPER/SBP).',
+          ev: rng(0.25, 0.55),
+        };
+      }
+      if (years <= 11) {
+        return {
+          ...e, r: '0,30–0,70', src: 'CALIPER / SBP', cat: 'renal-ped', sexDep: false,
+          note: 'Conferir faixa etária do laudo (CALIPER/SBP).',
+          cut: '6–11 anos: 0,30–0,70 mg/dL. Conferir faixa etária do laudo (CALIPER/SBP).',
+          ev: rng(0.3, 0.7),
+        };
+      }
+      if (years <= 14) {
+        return {
+          ...e, r: '0,45–0,85', src: 'CALIPER / SBP', cat: 'renal-ped', sexDep: false,
+          note: 'Conferir faixa etária do laudo (CALIPER/SBP).',
+          cut: '12–14 anos: 0,45–0,85 mg/dL. Conferir faixa etária do laudo (CALIPER/SBP).',
+          ev: rng(0.45, 0.85),
+        };
+      }
+      if (years < 18) {
+        return {
+          ...e, r: 'F 0,50–0,90 · M 0,60–1,10', src: 'CALIPER / SBP', cat: 'renal-ped', sexDep: true,
+          note: 'Conferir faixa etária do laudo (CALIPER/SBP).',
+          cut: '15–17 anos: F 0,50–0,90 · M 0,60–1,10 mg/dL. Conferir faixa etária do laudo (CALIPER/SBP).',
+          ev: rngS([0.5, 0.9], [0.6, 1.1]),
+        };
+      }
+      return e;
+
+    case 'homa':
+      if (years < 18) {
+        return {
+          ...e, r: 'Avaliar estágio de Tanner', src: 'SBD / ISPAD / SBP', cat: 'glic-ped',
+          note: 'Calculado automaticamente: (glicemia × insulina) / 405. Em < 18 anos, o corte varia conforme o estágio puberal de Tanner devido à resistência insulínica fisiológica da puberdade; não aplicar o corte adulto BRAMS (< 2,7).',
+          cut: 'Pediátrico (< 18 anos): avaliar conforme estágio puberal de Tanner (SBD 2024 / ISPAD / SBP).',
+          ev: () => ['Avaliar Tanner', 'neutral'],
+        };
+      }
+      return e;
+
+    case 'fa':
+      if (years < 18) {
+        return {
+          ...e, r: 'Faixa etária pediátrica (ver laudo)', src: 'CALIPER / SBP', cat: 'caliper', sexDep: false,
+          note: 'Elevada fisiologicamente durante o crescimento ósseo e estirão puberal; não aplicar corte fixo de adulto.',
+          cut: 'Faixa etária pediátrica (CALIPER/SBP): valores usuais ~100–350 U/L na infância (podendo ultrapassar 400 U/L no estirão puberal). Conferir laudo.',
+          ev: () => ['Conferir laudo', 'neutral'],
+        };
+      }
+      return e;
+
+    case 'fosforo':
+      if (years < 18) {
+        return {
+          ...e, r: 'Faixa etária pediátrica (ver laudo)', src: 'CALIPER / SBP', cat: 'caliper', sexDep: false,
+          note: 'Valores fisiologicamente mais elevados em crianças e adolescentes pelo metabolismo ósseo em crescimento.',
+          cut: 'Faixa etária pediátrica (CALIPER/SBP): lactentes ~4,5–6,7 · 1–12 anos ~3,6–5,8 · 13–17 anos ~2,7–4,9 mg/dL. Conferir laudo.',
+          ev: () => ['Conferir laudo', 'neutral'],
+        };
+      }
+      return e;
+
+    case 'acurico':
+      if (years < 18) {
+        return {
+          ...e, r: 'Faixa etária pediátrica (ver laudo)', src: 'CALIPER / SBP', cat: 'caliper', sexDep: false,
+          note: 'Varia conforme idade e maturação puberal; não aplicar corte fixo de adulto.',
+          cut: 'Faixa etária pediátrica (CALIPER/SBP): infância ~2,0–5,5 mg/dL, aproximando-se dos valores adultos na adolescência. Conferir laudo.',
+          ev: () => ['Conferir laudo', 'neutral'],
+        };
+      }
+      return e;
+
+    case 'tsh':
+      if (years < 18) {
+        return {
+          ...e, r: 'Faixa etária pediátrica (ver laudo)', src: 'CALIPER / SBP', cat: 'caliper', sexDep: false,
+          note: 'Limites de TSH variam conforme idade pediátrica e método laboratorial.',
+          cut: 'Faixa etária pediátrica (CALIPER/SBP): lactentes e pré-escolares têm limite superior mais amplo (~0,7–5,7 mUI/L), reduzindo gradualmente até a adolescência. Conferir laudo.',
+          ev: () => ['Conferir laudo', 'neutral'],
+        };
+      }
+      return e;
+
+    default:
+      return e;
+  }
+}
+
+/** Valor efetivo: digitado manualmente ou calculado (HOMA-IR, não-HDL, TFGe). ctx = { sex, age, ageMonths, heightCm } */
 export function labValue(d, key, ctx = {}) {
   const v = (d && d.v) || {};
   if (has(v[key])) return String(v[key]);
@@ -204,6 +531,10 @@ export function labValue(d, key, ctx = {}) {
     return ct !== null && hdl !== null && ct - hdl > 0 ? fmt(ct - hdl, 0) : '';
   }
   if (key === 'tfge') {
+    if (ctx.age !== null && ctx.age !== undefined && ctx.age >= 1 && ctx.age < 18) {
+      const g = bedsideSchwartz(P(v.creatinina), ctx.heightCm, ctx.age);
+      return g !== null ? fmt(g, 0) : '';
+    }
     const g = ckdEpi2021(P(v.creatinina), ctx.age, ctx.sex);
     return g !== null ? fmt(g, 0) : '';
   }
@@ -211,9 +542,21 @@ export function labValue(d, key, ctx = {}) {
 }
 export const isAutoValue = (d, key, ctx = {}) => !has(d && d.v && d.v[key]) && labValue(d, key, ctx) !== '';
 
+/** Dica neutra quando falta dado para cálculo automático (ex.: estatura na Aba 7 para Schwartz). */
+export function labHint(d, key, ctx = {}) {
+  if (key !== 'tfge' || has(d && d.v && d.v.tfge)) return null;
+  if (!has(d && d.v && d.v.creatinina)) return null;
+  if (ctx.age !== null && ctx.age !== undefined && ctx.age >= 1 && ctx.age < 18 && !(ctx.heightCm > 0)) {
+    return { label: 'Informar estatura (Aba 7)', tone: 'neutral' };
+  }
+  return null;
+}
+
 /** Semáforo: retorna { label, tone } ou null. tone: ok | warn | bad | neutral */
-export function evalExam(key, valueStr, sex) {
-  const e = LAB_BY_KEY[key];
+export function evalExam(key, valueStr, sexOrCtx, ctxArg = {}) {
+  const ctx = sexOrCtx && typeof sexOrCtx === 'object' ? sexOrCtx : { ...ctxArg, sex: sexOrCtx };
+  const sex = ctx.sex;
+  const e = examForAge(key, ctx);
   if (!e || !e.ev || !has(valueStr)) return null;
   const v = parseBRNumber(valueStr);
   if (v === null) return null;

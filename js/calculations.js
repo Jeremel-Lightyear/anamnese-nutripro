@@ -368,6 +368,15 @@ export function ckdEpi2021(scr, ageYears, sex) {
   return Number.isFinite(v) ? v : null;
 }
 
+/** TFGe pediátrica (1–17 anos) — Equação de Schwartz Modificada (Bedside Schwartz, 2009). */
+export function bedsideSchwartz(scr, heightCm, ageYears) {
+  if (scr === null || scr === undefined || !Number.isFinite(scr) || scr <= 0) return null;
+  if (heightCm === null || heightCm === undefined || !Number.isFinite(heightCm) || heightCm <= 0) return null;
+  if (ageYears === null || ageYears === undefined || !Number.isFinite(ageYears) || ageYears < 1 || ageYears >= 18) return null;
+  const v = (0.413 * heightCm) / scr;
+  return Number.isFinite(v) ? v : null;
+}
+
 export function pregestationalIMC(ppg, altura) {
   return calcIMC(ppg, altura);
 }

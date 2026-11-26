@@ -1568,5 +1568,27 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
   justify-content: flex-end;
   margin-bottom: 12px;
 }
+.lab-age-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin-bottom: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--line);
+}
+.lab-age-bar.ped {
+  background: var(--info-bg);
+  border-color: var(--info);
+}
+.lab-age-badge {
+  font-size: .74rem;
+  font-weight: 800;
+  color: var(--ink);
+  text-transform: uppercase;
+}
+.lab-age-bar.ped .lab-age-badge { color: var(--info); }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

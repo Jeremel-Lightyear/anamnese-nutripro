@@ -1,5 +1,5 @@
 // Service Worker: atualização automática (Network-First em app shell + Cache-First em mídia/fontes)
-const CACHE = 'nutripro-v9';
+const CACHE = 'nutripro-v10';
 const ASSETS = [
   './',
   './index.html',
