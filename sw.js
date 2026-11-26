@@ -1,6 +1,6 @@
 // Service Worker: atualização automática (Network-First em app shell + Cache-First em mídia/fontes)
-const CACHE = 'nutripro-v11';
-const ASSETS = [
+const CACHE = 'nutripro-v12';
+const CORE_ASSETS = [
   './',
   './index.html',
   './manifest.json',
@@ -13,6 +13,8 @@ const ASSETS = [
   './js/bristol.js',
   './js/exams-data.js',
   './js/export.js',
+];
+const MEDIA_ASSETS = [
   './icons/icon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -66,14 +68,27 @@ const ASSETS = [
   './assets/fonts/nunito-800-latin-ext.woff2',
   './assets/fonts/nunito-800-latin.woff2',
 ];
+const ASSETS = [...CORE_ASSETS, ...MEDIA_ASSETS];
 
 const STATIC_RE = /\/(?:assets\/(?:fonts|bg|sprites)|icons)\//;
 
+async function cacheOne(cache, url) {
+  try {
+    const res = await fetch(new Request(url, { cache: 'no-store' }));
+    if (res && res.ok) await cache.put(url, res);
+    else console.warn('[NutriPro SW] Falha ao pré-cachear:', url, res && res.status);
+  } catch (err) {
+    console.warn('[NutriPro SW] Erro ao pré-cachear:', url, err);
+  }
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE)
-      .then((c) => c.addAll(ASSETS.map((u) => new Request(u, { cache: 'no-store' }))))
-      .then(() => self.skipWaiting())
+    caches.open(CACHE).then(async (c) => {
+      await Promise.allSettled(CORE_ASSETS.map((u) => cacheOne(c, u)));
+      await Promise.allSettled(MEDIA_ASSETS.map((u) => cacheOne(c, u)));
+      return self.skipWaiting();
+    })
   );
 });
 

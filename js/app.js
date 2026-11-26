@@ -67,6 +67,7 @@ const PARTNERS = {
   chimchar: { name: 'Chimchar', num: '#390', src: SPRITES.chimchar, bg: './assets/bg/chimchar.png' },
   mimikyu: { name: 'Mimikyu', num: '#778', src: SPRITES.mimikyu, bg: './assets/bg/mimikyu.png' },
 };
+let swReg = null;
 let partner = PARTNERS[storage.get(KEYS.partner)] ? storage.get(KEYS.partner) : 'bulbasaur';
 let skin = storage.get(KEYS.skin) === 'clean' ? 'clean' : 'nutridex';
 let stamps = storage.get(KEYS.stamps) !== 'off';
@@ -1257,6 +1258,25 @@ document.addEventListener('click', async (e) => {
       storage.set(KEYS.theme, t);
       break;
     }
+    case 'force-update': {
+      toast('Atualizando versão do app...');
+      try {
+        if (swReg) await swReg.update().catch(() => {});
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map(async (r) => {
+            await r.update().catch(() => {});
+            if (r.waiting) r.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }));
+        }
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((k) => caches.delete(k)));
+        }
+      } catch (err) {}
+      window.location.reload();
+      break;
+    }
     default:
   }
 });
@@ -1408,6 +1428,7 @@ document.addEventListener('keydown', (e) => {
       window.location.reload();
     });
     navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then((reg) => {
+      swReg = reg;
       if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
       reg.addEventListener('updatefound', () => {
         const nw = reg.installing;

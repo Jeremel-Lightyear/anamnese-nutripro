@@ -1134,6 +1134,15 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
 .empty { padding: 16px; text-align: center; }
 .dfoot { display: grid; gap: 8px; }
 .dfoot .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.app-ver-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--line);
+}
+.app-ver { font-size: .72rem; color: var(--muted); font-weight: 700; }
 .privacy {
   display: flex;
   align-items: flex-start;
