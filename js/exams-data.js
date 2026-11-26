@@ -39,6 +39,16 @@ export const REFERENCES = [
     items: ['Departamento de Tireoide da Sociedade Brasileira de Endocrinologia e Metabologia (SBEM). Consenso Brasileiro para Diagnóstico e Tratamento do Hipotireoidismo. Arq Bras Endocrinol Metabol.'],
   },
   {
+    id: 'ped', cat: 'Antropometria e Hidratação Pediátrica',
+    items: [
+      'WHO Multicentre Growth Reference Study Group. WHO Child Growth Standards (0–5 years). Geneva: WHO; 2006.',
+      'de Onis M et al. Development of a WHO growth reference for school-aged children and adolescents (5–19 years). Bull World Health Organ. 2007;85:660–667.',
+      'Brasil. Ministério da Saúde. Orientações para a coleta e análise de dados antropométricos em serviços de saúde: Norma Técnica do SISVAN.',
+      'Holliday MA, Segar WE. The maintenance need for water in parenteral fluid therapy. Pediatrics. 1957;19(5):823–832.',
+      'Institute of Medicine (IOM). Dietary Reference Intakes for Water, Potassium, Sodium, Chloride, and Sulfate. Washington, DC: National Academies Press; 2005.',
+    ],
+  },
+  {
     id: 'outros', cat: 'Demais marcadores (Vitaminas, Eletrólitos, Enzimas Hepáticas)',
     items: [
       'Manual MSD – Versão para Profissionais de Saúde.',

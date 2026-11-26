@@ -142,8 +142,13 @@ function tabIdent() {
   ${card('Histórico de acompanhamentos e dietas anteriores', `${seg('p.dietasPrev', 'Já fez dieta ou acompanhamento antes?', ['Não', 'Sim'])}${area('p.dietasObs', 'O que funcionou e quais foram as maiores dificuldades de adesão?', { rows: 3 })}`)}`;
 }
 
+let showPedHorm = false;
+let showPedAdult = false;
+
 function tabHPP() {
   const fem = P.p.sexo === 'Feminino';
+  const age = ageOf(P);
+  const hideHorm = fem && age && age.years < 9 && !showPedHorm;
   const pats = PATOLOGIAS.map(([k, l]) => `<div class="pat">${chk('h.pat.' + k + '.on', l, k === 'tea' ? { rr: true } : {})}
     ${k === 'dm' ? `<select class="dmtipo" data-k="h.dmTipo" aria-label="Tipo de diabetes"><option value="">Tipo…</option>${DM_TIPOS.map((t) => `<option${V('h.dmTipo') === t ? ' selected' : ''}>${t}</option>`).join('')}</select>` : ''}
     <input class="obs" data-k="h.pat.${k}.obs" value="${esc(V('h.pat.' + k + '.obs'))}" placeholder="${k === 'cirurg' ? 'Qual cirurgia e quando' : 'Há quanto tempo / observações'}"></div>`).join('');
@@ -172,11 +177,11 @@ function tabHPP() {
     `<div class="split">${seg('h.alergia', 'Alergias alimentares', ['Não', 'Sim'], { rr: true })}${V('h.alergia') === 'Sim' ? inp('h.alergiaQuais', 'Quais?', { ph: 'ex.: APLV, camarão, amendoim' }) : ''}</div>`,
     `<div class="split">${seg('h.intol', 'Intolerâncias / Sensibilidades alimentares', ['Não', 'Sim'], { rr: true })}${V('h.intol') === 'Sim' ? inp('h.intolQuais', 'Quais e grau de tolerância?', { ph: 'ex.: lactose (tolera 1/2 copo), glúten, FODMAPs' }) : ''}</div>`
   ))}
-  ${fem ? card('Saúde da mulher', grid(
+  ${fem ? (hideHorm ? `<div class="ped-opt-row"><button type="button" class="btn ghost mini" data-act="toggle-ped-horm">Exibir campos hormonais/puberais (opcional)</button></div>` : card('Saúde da mulher', grid(
     seg('h.ciclo', 'Ciclo menstrual', ['Regular', 'Irregular', 'Amenorreia', 'Menopausa']),
     `<div class="split">${seg('h.anticoncepcional', 'Usa anticoncepcional?', ['Não', 'Sim'], { rr: true })}${V('h.anticoncepcional') === 'Sim' ? inp('h.anticQual', 'Qual?') : ''}</div>`,
     seg('h.tpm', 'Sintomas intensos de TPM?', ['Não', 'Sim'])
-  )) : ''}`;
+  ))) : ''}`;
 }
 
 function tabGI() {
@@ -203,6 +208,8 @@ function tabGI() {
 
 function tabRotina() {
   const v = P.v;
+  const age = ageOf(P);
+  const hideAdult = age && age.years < 12 && !showPedAdult;
   const af = v.af === 'Sim'
     ? `<div class="list">${v.afList.map((a, i) => `<div class="lrow af">${inp(`v.afList.${i}.mod`, 'Modalidade', { ph: 'Musculação, corrida…', cls: 'grow' })}${inp(`v.afList.${i}.freq`, 'Vezes/semana', { im: 'numeric' })}${inp(`v.afList.${i}.hor`, 'Horário habitual', { type: 'time' })}${inp(`v.afList.${i}.dur`, 'Duração (min)', { im: 'numeric' })}${inp(`v.afList.${i}.tempo`, 'Há quanto tempo', { ph: 'ex.: 6 meses' })}${sel(`v.afList.${i}.int`, 'Intensidade', ['Leve', 'Moderada', 'Intensa'])}${rmBtn('v.afList', i)}</div>`).join('') || '<p class="muted">Adicione a(s) modalidade(s).</p>'}</div>${addBtn('v.afList', 'Adicionar modalidade')}`
     : '';
@@ -214,8 +221,8 @@ function tabRotina() {
   ), '', { id: 'snorlax', tip: '#143 Snorlax · Sono e Recuperação' })}
   ${card('Rotina diária', grid(
     `<div class="split">${seg('v.estuda', 'Estuda?', ['Não', 'Sim'], { rr: true })}${v.estuda === 'Sim' ? inp('v.estudaHor', 'Horário') : ''}</div>`,
-    `<div class="split">${seg('v.trabalha', 'Trabalha?', ['Não', 'Sim'], { rr: true })}${v.trabalha === 'Sim' ? inp('v.trabHor', 'Horário') : ''}</div>`,
-    v.trabalha === 'Sim' ? seg('v.esforco', 'Esforço físico no trabalho', ['Sedentário', 'Leve', 'Moderado', 'Intenso']) : '',
+    hideAdult ? '' : `<div class="split">${seg('v.trabalha', 'Trabalha?', ['Não', 'Sim'], { rr: true })}${v.trabalha === 'Sim' ? inp('v.trabHor', 'Horário') : ''}</div>`,
+    !hideAdult && v.trabalha === 'Sim' ? seg('v.esforco', 'Esforço físico no trabalho', ['Sedentário', 'Leve', 'Moderado', 'Intenso']) : '',
     num('v.tela', 'Tempo de tela diário (h/dia)'),
     `<div class="fld"><span>Nível de estresse percebido: <b data-calc="estresse" class="inl"></b></span><input type="range" min="1" max="10" step="1" data-k="v.estresse" value="${esc(v.estresse || 5)}"><div class="scale"><small>1 · calmo</small><small>10 · muito estressado</small></div></div>`
   ))}
@@ -224,7 +231,7 @@ function tabRotina() {
     `<div class="fld full"><span>Equipamentos disponíveis</span><div class="seg wrap">${EQUIP.map(([k, l]) => chk('v.equip.' + k, l)).join('')}</div></div>`
   ))}
   ${card('Atividade física', `${seg('v.af', 'Pratica atividade física?', ['Não', 'Sim'], { rr: true })}${af}`, '', { id: 'charmander', tip: '#004 Charmander · Gasto Energético' })}
-  ${card('Tabagismo e álcool', grid(
+  ${hideAdult ? `<div class="ped-opt-row"><button type="button" class="btn ghost mini" data-act="toggle-ped-adult">Exibir campos de adulto (opcional)</button></div>` : card('Tabagismo e álcool', grid(
     `<div class="split">${seg('v.fuma', 'Fuma?', ['Não', 'Sim', 'Ex-fumante'], { rr: true })}${v.fuma === 'Sim' ? grid(inp('v.fumaTipo', 'Tipo', { ph: 'cigarro, palheiro, vape…' }), inp('v.fumaQtd', 'Quantidade/dia', { im: 'numeric' })) : ''}</div>`,
     `<div class="split">${seg('v.alcool', 'Bebida alcoólica?', ['Não', 'Sim'], { rr: true })}${v.alcool === 'Sim' ? grid(inp('v.alcTipo', 'Tipo de bebida'), inp('v.alcFreq', 'Frequência semanal'), inp('v.alcQtd', 'Quantidade por ocasião')) : ''}</div>`
   ))}`;
@@ -234,6 +241,8 @@ function tabAlimentar() {
   const a = P.a;
   const urina = `<div class="fld"><span>Cor predominante da urina</span><div class="seg wrap">${URINA.map(([n, c]) => `<label class="chip urina"><input type="radio" name="a.urina" data-k="a.urina" value="${esc(n)}"${a.urina === n ? ' checked' : ''}><span><i class="sw" style="background:${c}"></i>${n}</span></label>`).join('')}</div></div>`;
   const freq = FREQ_ITEMS.map(([k, l, ph, opts]) => `<div class="frow"><div class="fname">${l}</div><div class="seg wrap">${(opts || FREQ_OPCOES).map((o) => `<label class="chip mini"><input type="radio" name="a.freq.${k}.f" data-k="a.freq.${k}.f" value="${esc(o)}"${a.freq[k].f === o ? ' checked' : ''}><span>${o}</span></label>`).join('')}</div><input data-k="a.freq.${k}.obs" value="${esc(a.freq[k].obs)}" placeholder="${esc(ph)}" aria-label="Observação: ${esc(l)}"></div>`).join('');
+  const age = ageOf(P);
+  const hidLabel = age && age.years < 18 ? 'Meta hídrica sugerida (Holliday-Segar)' : 'Meta hídrica sugerida (35 ml/kg)';
   return `
   ${card('Comportamento alimentar', grid(
     seg('a.tvCel', 'Come assistindo TV ou mexendo no celular?', ['Sempre', 'Às vezes', 'Nunca']),
@@ -248,7 +257,7 @@ function tabAlimentar() {
   ${card('Hidratação', grid(
     num('a.agua', 'Ingestão de água pura', { ph: 'ex.: 1,5' }),
     seg('a.aguaUnid', 'Unidade', ['L', 'copos'], { rr: true }),
-    `<div class="fld full"><span>Meta hídrica sugerida (35 ml/kg)</span>${calc('hid')}</div>`,
+    `<div class="fld full"><span>${hidLabel}</span>${calc('hid')}</div>`,
     `<div class="full">${urina}</div>`
   ) + `<p class="muted small">"L" = litros por dia; "copos" = copos de 200 ml por dia.</p>`, '', { id: 'squirtle', tip: '#007 Squirtle · Meta Hídrica' })}
   ${card('Frequência alimentar semiquantitativa', `<div class="ftable">${freq}</div>`)}`;
@@ -264,17 +273,24 @@ function tabRecord() {
 
 function tabAntro() {
   const an = P.an;
+  const age = ageOf(P);
+  const isPed = C.isPediatricAnthro(age);
+  const showZ = isPed || an.hist.some((h) => h.zimci);
   const hist = an.hist.length
-    ? `<div class="table-wrap"><table class="tbl"><thead><tr><th>Data</th><th>Peso</th><th>Altura</th><th>IMC</th><th>CC</th><th>CA</th><th>CQ</th><th>CB</th><th>CP</th><th>Σ Dobras</th><th></th></tr></thead><tbody>${an.hist.map((h, i) => `<tr><td>${esc(C.fmtDateBR(h.data))}</td><td>${esc(h.peso) || '—'}</td><td>${esc(h.altura) || '—'}</td><td>${esc(h.imc) || '—'}</td><td>${esc(h.cc) || '—'}</td><td>${esc(h.ca) || '—'}</td><td>${esc(h.cq) || '—'}</td><td>${esc(h.cb) || '—'}</td><td>${esc(h.cp) || '—'}</td><td>${esc(h.dobras) || '—'}</td><td>${rmBtn('an.hist', i)}</td></tr>`).join('')}</tbody></table></div>`
+    ? `<div class="table-wrap"><table class="tbl"><thead><tr><th>Data</th><th>Peso</th><th>${isPed ? 'Estatura' : 'Altura'}</th><th>IMC</th>${showZ ? '<th>Z IMC/I</th>' : ''}${isPed ? '' : '<th>CC</th><th>CA</th><th>CQ</th><th>CB</th><th>CP</th><th>Σ Dobras</th>'}<th></th></tr></thead><tbody>${an.hist.map((h, i) => `<tr><td>${esc(C.fmtDateBR(h.data))}</td><td>${esc(h.peso) || '—'}</td><td>${esc(h.altura) || '—'}</td><td>${esc(h.imc) || '—'}</td>${showZ ? `<td>${esc(h.zimci) || '—'}</td>` : ''}${isPed ? '' : `<td>${esc(h.cc) || '—'}</td><td>${esc(h.ca) || '—'}</td><td>${esc(h.cq) || '—'}</td><td>${esc(h.cb) || '—'}</td><td>${esc(h.cp) || '—'}</td><td>${esc(h.dobras) || '—'}</td>`}<td>${rmBtn('an.hist', i)}</td></tr>`).join('')}</tbody></table></div>`
     : '<p class="muted">Nenhuma medição registrada.</p>';
+  const pedBanner = isPed
+    ? `<div class="ped-badge-bar"><span class="ped-badge mono">Avaliação Pediátrica · OMS 2006/2007 + SISVAN</span><small class="muted">${esc(age.text)} (${Math.floor(age.totalMonths)} meses)</small></div>`
+    : '';
   return `
+  ${pedBanner}
   ${card('Dados base e metas', grid(
-    num('an.peso', 'Peso atual (kg)', { ph: '65,5' }), num('an.pesoHab', 'Peso habitual (kg)'), num('an.pesoObj', 'Peso objetivo (kg)'),
-    num('an.altura', 'Altura (m ou cm)', { ph: '1,76 ou 176', hint: 'Valores acima de 3 são convertidos de cm para m.' })
+    num('an.peso', 'Peso atual (kg)', { ph: isPed ? '14,0' : '65,5' }), num('an.pesoHab', 'Peso habitual (kg)'), num('an.pesoObj', 'Peso objetivo (kg)'),
+    num('an.altura', isPed ? 'Estatura / Altura (m ou cm)' : 'Altura (m ou cm)', { ph: isPed ? '0,95 ou 95' : '1,76 ou 176', hint: 'Valores acima de 3 são convertidos de cm para m.' })
   ), '', { id: 'charmander', tip: '#004 Charmander · Composição Corporal' })}
-  ${card('Cálculos automáticos', calc('antro'))}
-  ${card('Circunferências (cm)', grid(num('an.cc', 'CC · Cintura'), num('an.ca', 'CA · Abdome'), num('an.cq', 'CQ · Quadril'), num('an.cb', 'CB · Braço'), num('an.cp', 'CP · Panturrilha'), num('an.pesc', 'Pescoço (opcional)')))}
-  ${card('Dobras cutâneas (mm)', grid(num('an.db', 'DB · Bicipital'), num('an.dt', 'DT · Tricipital'), num('an.dsi', 'DSI · Supra-ilíaca'), num('an.dse', 'DSE · Subescapular'), `<div class="fld"><span>Σ4DC</span>${calc('sum4')}</div>`))}
+  ${card(isPed ? 'Avaliação Pediátrica (OMS 2006/2007 · SISVAN)' : 'Cálculos automáticos', calc('antro'))}
+  ${isPed ? '' : card('Circunferências (cm)', grid(num('an.cc', 'CC · Cintura'), num('an.ca', 'CA · Abdome'), num('an.cq', 'CQ · Quadril'), num('an.cb', 'CB · Braço'), num('an.cp', 'CP · Panturrilha'), num('an.pesc', 'Pescoço (opcional)')))}
+  ${isPed ? '' : card('Dobras cutâneas (mm)', grid(num('an.db', 'DB · Bicipital'), num('an.dt', 'DT · Tricipital'), num('an.dsi', 'DSI · Supra-ilíaca'), num('an.dse', 'DSE · Subescapular'), `<div class="fld"><span>Σ4DC</span>${calc('sum4')}</div>`))}
   ${card('Histórico / Evolução antropométrica', `<button type="button" class="btn primary" data-act="regmed">Registrar medição no histórico</button>${hist}`)}`;
 }
 
@@ -387,9 +403,10 @@ const CALCS = {
   },
   hid() {
     const an = anthroOf(P);
-    const g = C.hydrationGoal(an.peso);
+    const age = ageOf(P);
+    const g = C.hydrationGoalForPatient(an.peso, age ? age.years : null, P.p.sexo);
     if (!g) return '— <small>(informe o peso atual na aba Antropometria)</small>';
-    let txt = `<div class="hid-calc"><div class="hid-top"><span class="mono">HP HÍDRICO</span><b class="mono">${C.fmt(g.litros, 2)} L/dia</b> <small>(${C.fmt(g.ml, 0)} ml ≈ ${C.fmt(g.copos, 0)} copos de 200 ml)</small></div>`;
+    let txt = `<div class="hid-calc"><div class="hid-top"><span class="mono">HP HÍDRICO · ${esc(g.method)}</span><b class="mono">${C.fmt(g.litros, 2)} L/dia</b> <small>(${C.fmt(g.ml, 0)} mL ≈ ${C.fmt(g.copos, 0)} copos de 200 mL)</small></div>`;
     const ag = C.parseBRNumber(P.a.agua);
     if (ag !== null) {
       const l = P.a.aguaUnid === 'copos' ? ag * 0.2 : ag;
@@ -399,6 +416,7 @@ const CALCS = {
     } else {
       txt += hpBar(0, 'info', 12);
     }
+    if (g.dri) txt += `<small class="muted">${esc(g.dri)}</small>`;
     return txt + '</div>';
   },
   bristol() {
@@ -415,7 +433,28 @@ const CALCS = {
   },
   antro() {
     const a = anthroOf(P);
+    const age = ageOf(P);
     const out = [];
+    if (a.pediatric) {
+      const ped = a.pediatric;
+      if (ped.needsSex) {
+        out.push('<div class="alert info">Selecionar sexo biológico na Aba 1 para calcular Escore-Z OMS</div>');
+      } else if (!ped.indicators.length) {
+        out.push('<p class="muted">Informe peso e/ou estatura para calcular os Escores-Z da OMS.</p>');
+      } else {
+        out.push('<div class="mcards">');
+        ped.indicators.forEach((ind) => {
+          const zPct = Math.min(100, Math.max(8, Math.round(((ind.z + 3) / 6) * 100)));
+          out.push(`<div class="mcard ${ind.tone} ped-card"><small class="mono">${esc(ind.code)} · ${esc(ind.name)}</small><b class="mono">${esc(ind.valueText)}</b><div class="ped-z mono"><span>Z ${esc(ind.zText)}</span><span>${esc(ind.pText)}</span></div>${hpBar(zPct, ind.tone)}<span>${esc(ind.label)}</span></div>`);
+        });
+        const v = a.variation;
+        if (v) out.push(mcard('Variação ponderal', `${v.pct > 0 ? '+' : ''}${C.fmt(v.pct)}%`, `${v.kg > 0 ? '+' : ''}${C.fmt(v.kg)} kg vs. habitual`, v.kg < 0 ? 'info' : v.kg > 0 ? 'warn' : 'ok'));
+        if (a.toGoal !== null) out.push(mcard('Meta de peso', `${a.toGoal > 0 ? '' : '+'}${C.fmt(-a.toGoal)} kg`, a.toGoal > 0 ? 'falta ganhar/perder' : 'objetivo atingido', 'info'));
+        out.push('</div>');
+      }
+      out.push(`<p class="muted small mono">ESTATURA: ${a.altura ? C.fmt(a.altura * 100) + ' cm' : '—'} · IDADE: ${age ? esc(age.text) + ` (${Math.floor(age.totalMonths)}m)` : '—'}</p>`);
+      return out.join('');
+    }
     if (a.imcClass && a.imcClass.pediatric) out.push(`<div class="alert info">${esc(a.imcClass.label)}</div>`);
     const imcHP = a.imc !== null ? Math.min(100, Math.max(12, Math.round((a.imc / 40) * 100))) : null;
     const rcqHP = a.rcq !== null ? Math.min(100, Math.max(15, Math.round((a.rcq / 1.2) * 100))) : null;
@@ -617,7 +656,19 @@ function updateSidebarHUD(overallPct) {
 
   const an = anthroOf(P);
   const imcCell = $('#hud-imc-cell');
-  if (an.imc !== null) {
+  if (an.pediatric) {
+    const imci = an.pediatric.byKey && an.pediatric.byKey.imci;
+    if (imci) {
+      $('#hud-imc').textContent = `${C.fmt(an.imc)} · Z ${imci.zText} · ${imci.short}`;
+      imcCell.className = `hud-cell ${imci.tone || ''}`;
+    } else if (an.imc !== null) {
+      $('#hud-imc').textContent = `${C.fmt(an.imc)} · ${an.pediatric.needsSex ? 'Definir sexo' : 'OMS'}`;
+      imcCell.className = 'hud-cell';
+    } else {
+      $('#hud-imc').textContent = '—';
+      imcCell.className = 'hud-cell';
+    }
+  } else if (an.imc !== null) {
     $('#hud-imc').textContent = `${C.fmt(an.imc)} · ${an.imcClass ? an.imcClass.short : ''}`;
     imcCell.className = `hud-cell ${an.imcClass && an.imcClass.tone ? an.imcClass.tone : ''}`;
   } else {
@@ -625,7 +676,7 @@ function updateSidebarHUD(overallPct) {
     imcCell.className = 'hud-cell';
   }
 
-  const hid = C.hydrationGoal(an.peso);
+  const hid = C.hydrationGoalForPatient(an.peso, age ? age.years : null, P.p.sexo);
   $('#hud-hid').textContent = hid ? `${C.fmt(hid.litros, 2)} L/dia` : '—';
 
   const br = P.gi.bristol && P.gi.bristol.length ? P.gi.bristol.map((n) => `Tipo ${n}`).join('/') : '—';
@@ -701,6 +752,8 @@ function render() {
 
 function openPatient(id) {
   P = patients.find((x) => x.id === id) || null;
+  showPedHorm = false;
+  showPedAdult = false;
   storage.set(KEYS.current, P ? P.id : '');
   render();
   renderDrawer();
@@ -808,8 +861,10 @@ function registerHist() {
   const a = anthroOf(P);
   if (a.peso === null && a.cc === null && a.cb === null) return toast('Preencha ao menos peso ou uma circunferência.');
   const f = (n, d = 1) => (n !== null ? C.fmt(n, d) : '');
+  const imci = a.pediatric && a.pediatric.byKey ? a.pediatric.byKey.imci : null;
   P.an.hist.push({
     data: P.p.data || C.todayISO(), peso: f(a.peso), altura: a.altura ? C.fmt(a.altura, 2) : '', imc: f(a.imc),
+    zimci: imci ? imci.zText : '',
     cc: f(a.cc), ca: f(a.ca), cq: f(a.cq), cb: f(a.cb), cp: f(a.cp), dobras: f(a.sum4),
   });
   P.an.hist.sort((x, y) => (x.data || '').localeCompare(y.data || ''));
@@ -925,6 +980,14 @@ document.addEventListener('click', async (e) => {
       setPartner(obPartner);
       storage.set(KEYS.onboarding, 'true');
       closeOnboarding();
+      break;
+    case 'toggle-ped-horm':
+      showPedHorm = true;
+      render();
+      break;
+    case 'toggle-ped-adult':
+      showPedAdult = true;
+      render();
       break;
     case 'ob-clean':
       setSkin('clean');

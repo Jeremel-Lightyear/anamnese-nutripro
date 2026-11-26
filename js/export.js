@@ -17,7 +17,7 @@ export function ageOf(p) {
 }
 export function anthroOf(p) {
   const a = ageOf(p);
-  return C.anthro(p.an, p.p.sexo, a ? a.years : null);
+  return C.anthro(p.an, p.p.sexo, a ? a.years : null, a ? a.totalDays : null);
 }
 
 const withUnit = (v, u) => (filled(v) ? `${String(v).trim()}${u ? ' ' + u : ''}` : '');
@@ -114,15 +114,19 @@ export function buildSections(p) {
   ]);
 
   // 5. Comportamento + Hidratação + Frequência
-  const goal = C.hydrationGoal(an.peso);
+  const goal = C.hydrationGoalForPatient(an.peso, age ? age.years : null, p.p.sexo);
   const aguaL = C.parseBRNumber(p.a.agua);
   const hid = filled(p.a.agua) ? `${p.a.agua} ${p.a.aguaUnid === 'copos' ? 'copos de 200 ml' : 'L/dia'}` : '';
+  const hidLabel = goal && goal.pediatric ? 'Meta hídrica sugerida (Holliday-Segar)' : 'Meta hídrica sugerida (35 ml/kg)';
+  const hidText = goal
+    ? `${C.fmt(goal.litros, 2)} L/dia (${C.fmt(goal.ml, 0)} ml ≈ ${C.fmt(goal.copos, 0)} copos de 200 ml)${goal.dri ? ' · ' + goal.dri : ''}`
+    : '';
   add('5. Comportamento Alimentar, Hidratação e Frequência', [
     R('Come com TV/celular', p.a.tvCel), R('Horário de maior fome', p.a.horaFome),
     R('Apetite em ansiedade/estresse', join([p.a.apetite, p.a.apetiteRelato], ' — ')),
     R('Fins de semana', join([p.a.fds, p.a.fdsDesc], ' — ')),
     R('Alimentos preferidos', p.a.preferidos), R('Aversões', p.a.aversoes),
-    R('Ingestão de água', hid), R('Meta hídrica sugerida (35 ml/kg)', goal ? `${C.fmt(goal.litros, 2)} L/dia (≈ ${C.fmt(goal.copos, 0)} copos de 200 ml)` : ''),
+    R('Ingestão de água', hid), R(hidLabel, hidText),
     R('Cor da urina', p.a.urina),
   ], [
     {
@@ -143,32 +147,52 @@ export function buildSections(p) {
 
   // 7. Antropometria
   const v = an.variation;
-  add('7. Avaliação Antropométrica', [
-    R('Peso atual / habitual / objetivo', join([withUnit(p.an.peso, 'kg'), withUnit(p.an.pesoHab, 'kg'), withUnit(p.an.pesoObj, 'kg')], ' / ').replace(/^$/, '')),
-    R('Altura', an.altura ? `${C.fmt(an.altura, 2)} m` : ''),
-    R('IMC', an.imc !== null ? `${C.fmt(an.imc)} kg/m² — ${an.imcClass.label}` : ''),
-    R('Variação ponderal', v ? `${v.kg > 0 ? '+' : ''}${C.fmt(v.kg)} kg (${v.pct > 0 ? '+' : ''}${C.fmt(v.pct)}%) em relação ao habitual` : ''),
-    R('Circunferências (cm)', join([
-      filled(p.an.cc) && `CC ${p.an.cc}`, filled(p.an.ca) && `CA ${p.an.ca}`, filled(p.an.cq) && `CQ ${p.an.cq}`,
-      filled(p.an.cb) && `CB ${p.an.cb}`, filled(p.an.cp) && `CP ${p.an.cp}`, filled(p.an.pesc) && `Pescoço ${p.an.pesc}`,
-    ], ' · ')),
-    R('RCQ', an.rcq !== null ? `${C.fmt(an.rcq, 2)} — ${an.rcqClass.label}` : ''),
-    R('RCE', an.rce !== null ? `${C.fmt(an.rce, 2)} — ${an.rceClass.label}` : ''),
-    R('CC (risco)', an.cc !== null && an.ccClass ? an.ccClass.label : ''),
-    R('Dobras cutâneas (mm)', join([
-      filled(p.an.db) && `DB ${p.an.db}`, filled(p.an.dt) && `DT ${p.an.dt}`, filled(p.an.dsi) && `DSI ${p.an.dsi}`,
-      filled(p.an.dse) && `DSE ${p.an.dse}`, an.sum4 !== null && `Σ4DC ${C.fmt(an.sum4)}`,
-    ], ' · ')),
-    R('CMB', an.cmb !== null ? `${C.fmt(an.cmb)} cm` : ''),
-    an.bodyFat && an.bodyFat.valid ? R('% Gordura corporal (Durnin & Womersley)', `${C.fmt(an.bodyFat.bodyFatPct)}% · Densidade ${C.fmt(an.bodyFat.density, 4)} g/cm³ · Siri (1961)`) : null,
-    an.bodyFat && an.bodyFat.valid && an.bodyFat.fatMassKg !== null ? R('Massa gorda / MLG', `MG ${C.fmt(an.bodyFat.fatMassKg)} kg · MLG ${C.fmt(an.bodyFat.leanMassKg)} kg`) : null,
-    R('Alerta', an.cpAlert),
-  ], [
-    {
-      title: 'Evolução antropométrica', head: ['Data', 'Peso', 'Altura', 'IMC', 'CC', 'CA', 'CQ', 'CB', 'CP', 'Σ Dobras'],
-      body: p.an.hist.map((h) => [dt(h.data), h.peso, h.altura, h.imc, h.cc, h.ca, h.cq, h.cb, h.cp, h.dobras]),
-    },
-  ]);
+  const ped = an.pediatric;
+  if (ped) {
+    const pedRows = ped.indicators.map((ind) => [ind.code + ' · ' + ind.name, ind.valueText, ind.zText, ind.pText, ind.label]);
+    const hasZ = p.an.hist.some((h) => filled(h.zimci));
+    add('7. Avaliação Antropométrica Pediátrica (OMS 2006/2007 · SISVAN)', [
+      R('Peso atual / habitual / objetivo', join([withUnit(p.an.peso, 'kg'), withUnit(p.an.pesoHab, 'kg'), withUnit(p.an.pesoObj, 'kg')], ' / ').replace(/^$/, '')),
+      R('Estatura / Altura', an.altura ? `${C.fmt(an.altura, 2)} m (${C.fmt(an.altura * 100)} cm)` : ''),
+      R('IMC calculado', an.imc !== null ? `${C.fmt(an.imc)} kg/m² (classificado por Escore-Z IMC/I)` : ''),
+      R('Variação ponderal', v ? `${v.kg > 0 ? '+' : ''}${C.fmt(v.kg)} kg (${v.pct > 0 ? '+' : ''}${C.fmt(v.pct)}%) em relação ao habitual` : ''),
+      ped.needsSex ? R('Avaliação OMS/SISVAN', 'Sexo biológico não informado para cálculo de Escore-Z') : null,
+    ], [
+      { title: 'Indicadores OMS 2006/2007 · Classificação SISVAN', head: ['Indicador', 'Medida', 'Escore-Z', 'Percentil', 'Classificação SISVAN'], body: pedRows },
+      {
+        title: 'Evolução antropométrica',
+        head: hasZ ? ['Data', 'Peso', 'Estatura', 'IMC', 'Z IMC/I'] : ['Data', 'Peso', 'Estatura', 'IMC'],
+        body: p.an.hist.map((h) => (hasZ ? [dt(h.data), h.peso, h.altura, h.imc, h.zimci || ''] : [dt(h.data), h.peso, h.altura, h.imc])),
+      },
+    ]);
+  } else {
+    add('7. Avaliação Antropométrica', [
+      R('Peso atual / habitual / objetivo', join([withUnit(p.an.peso, 'kg'), withUnit(p.an.pesoHab, 'kg'), withUnit(p.an.pesoObj, 'kg')], ' / ').replace(/^$/, '')),
+      R('Altura', an.altura ? `${C.fmt(an.altura, 2)} m` : ''),
+      R('IMC', an.imc !== null ? `${C.fmt(an.imc)} kg/m² — ${an.imcClass.label}` : ''),
+      R('Variação ponderal', v ? `${v.kg > 0 ? '+' : ''}${C.fmt(v.kg)} kg (${v.pct > 0 ? '+' : ''}${C.fmt(v.pct)}%) em relação ao habitual` : ''),
+      R('Circunferências (cm)', join([
+        filled(p.an.cc) && `CC ${p.an.cc}`, filled(p.an.ca) && `CA ${p.an.ca}`, filled(p.an.cq) && `CQ ${p.an.cq}`,
+        filled(p.an.cb) && `CB ${p.an.cb}`, filled(p.an.cp) && `CP ${p.an.cp}`, filled(p.an.pesc) && `Pescoço ${p.an.pesc}`,
+      ], ' · ')),
+      R('RCQ', an.rcq !== null ? `${C.fmt(an.rcq, 2)} — ${an.rcqClass.label}` : ''),
+      R('RCE', an.rce !== null ? `${C.fmt(an.rce, 2)} — ${an.rceClass.label}` : ''),
+      R('CC (risco)', an.cc !== null && an.ccClass ? an.ccClass.label : ''),
+      R('Dobras cutâneas (mm)', join([
+        filled(p.an.db) && `DB ${p.an.db}`, filled(p.an.dt) && `DT ${p.an.dt}`, filled(p.an.dsi) && `DSI ${p.an.dsi}`,
+        filled(p.an.dse) && `DSE ${p.an.dse}`, an.sum4 !== null && `Σ4DC ${C.fmt(an.sum4)}`,
+      ], ' · ')),
+      R('CMB', an.cmb !== null ? `${C.fmt(an.cmb)} cm` : ''),
+      an.bodyFat && an.bodyFat.valid ? R('% Gordura corporal (Durnin & Womersley)', `${C.fmt(an.bodyFat.bodyFatPct)}% · Densidade ${C.fmt(an.bodyFat.density, 4)} g/cm³ · Siri (1961)`) : null,
+      an.bodyFat && an.bodyFat.valid && an.bodyFat.fatMassKg !== null ? R('Massa gorda / MLG', `MG ${C.fmt(an.bodyFat.fatMassKg)} kg · MLG ${C.fmt(an.bodyFat.leanMassKg)} kg`) : null,
+      R('Alerta', an.cpAlert),
+    ], [
+      {
+        title: 'Evolução antropométrica', head: ['Data', 'Peso', 'Altura', 'IMC', 'CC', 'CA', 'CQ', 'CB', 'CP', 'Σ Dobras'],
+        body: p.an.hist.map((h) => [dt(h.data), h.peso, h.altura, h.imc, h.cc, h.ca, h.cq, h.cb, h.cp, h.dobras]),
+      },
+    ]);
+  }
 
   // 8. Exames
   const dates = p.ex.dates;
@@ -299,18 +323,29 @@ export function draftDiagnosis(p) {
   const motivo = Object.entries(p.p.tags || {}).filter(([, v]) => v).map(([k]) => k.toLowerCase());
   if (motivo.length || filled(p.p.motivo)) parts.push(`Procura atendimento por ${join([motivo.join(', '), p.p.motivo && p.p.motivo.replace(/\.$/, '')], '; ')}.`);
   const ant = [];
-  if (an.imc !== null) ant.push(`IMC de ${C.fmt(an.imc)} kg/m² (${an.imcClass.short})`);
-  if (an.rce !== null) ant.push(`RCE de ${C.fmt(an.rce, 2)} (${an.rce >= 0.5 ? 'risco metabólico aumentado' : 'sem risco aumentado'})`);
-  if (an.rcq !== null) ant.push(`RCQ de ${C.fmt(an.rcq, 2)}${an.rcqClass && an.rcqClass.tone ? ' (' + (an.rcqClass.tone === 'bad' ? 'risco cardiovascular elevado' : 'sem risco elevado') + ')' : ''}`);
-  if (an.variation) ant.push(`variação ponderal de ${an.variation.kg > 0 ? '+' : ''}${C.fmt(an.variation.kg)} kg (${C.fmt(an.variation.pct)}%) em relação ao peso habitual`);
-  if (an.cmb !== null) ant.push(`CMB de ${C.fmt(an.cmb)} cm`);
-  if (an.bodyFat && an.bodyFat.valid) {
-    let bfTxt = `%GC de ${C.fmt(an.bodyFat.bodyFatPct)}% (Durnin & Womersley)`;
-    if (an.bodyFat.fatMassKg !== null) bfTxt += ` — MG ${C.fmt(an.bodyFat.fatMassKg)} kg e MLG ${C.fmt(an.bodyFat.leanMassKg)} kg`;
-    ant.push(bfTxt);
+  if (an.pediatric) {
+    if (an.pediatric.indicators.length) {
+      an.pediatric.indicators.forEach((ind) => {
+        ant.push(`${ind.code} ${ind.valueText} (Z ${ind.zText} · ${ind.pText} · ${ind.label})`);
+      });
+    } else if (an.imc !== null) {
+      ant.push(`IMC de ${C.fmt(an.imc)} kg/m² (classificar por Escore-Z OMS)`);
+    }
+    if (an.variation) ant.push(`variação ponderal de ${an.variation.kg > 0 ? '+' : ''}${C.fmt(an.variation.kg)} kg (${C.fmt(an.variation.pct)}%) em relação ao peso habitual`);
+    if (ant.length) parts.push('Avaliação antropométrica pediátrica (OMS/SISVAN): ' + ant.join('; ') + '.');
+  } else {
+    if (an.imc !== null) ant.push(`IMC de ${C.fmt(an.imc)} kg/m² (${an.imcClass.short})`);
+    if (an.rce !== null) ant.push(`RCE de ${C.fmt(an.rce, 2)} (${an.rce >= 0.5 ? 'risco metabólico aumentado' : 'sem risco aumentado'})`);
+    if (an.rcq !== null) ant.push(`RCQ de ${C.fmt(an.rcq, 2)}${an.rcqClass && an.rcqClass.tone ? ' (' + (an.rcqClass.tone === 'bad' ? 'risco cardiovascular elevado' : 'sem risco elevado') + ')' : ''}`);
+    if (an.variation) ant.push(`variação ponderal de ${an.variation.kg > 0 ? '+' : ''}${C.fmt(an.variation.kg)} kg (${C.fmt(an.variation.pct)}%) em relação ao peso habitual`);
+    if (an.cmb !== null) ant.push(`CMB de ${C.fmt(an.cmb)} cm`);
+    if (an.bodyFat && an.bodyFat.valid) {
+      let bfTxt = `%GC de ${C.fmt(an.bodyFat.bodyFatPct)}% (Durnin & Womersley)`;
+      if (an.bodyFat.fatMassKg !== null) bfTxt += ` — MG ${C.fmt(an.bodyFat.fatMassKg)} kg e MLG ${C.fmt(an.bodyFat.leanMassKg)} kg`;
+      ant.push(bfTxt);
+    }
+    if (ant.length) parts.push('Avaliação antropométrica: ' + ant.join('; ') + '.');
   }
-  if (ant.length) parts.push('Avaliação antropométrica: ' + ant.join('; ') + '.');
-  if (an.imcClass && an.imcClass.pediatric) parts.push('Classificação do estado nutricional deve seguir Escore-Z / Curvas OMS.');
   if (p.gi.bristol.length) parts.push(`Escala de Bristol: ${bristolText(p.gi.bristol)}.`);
   const pats = PATOLOGIAS.filter(([k]) => p.h.pat[k] && p.h.pat[k].on).map(([k, l]) => {
     if (k === 'dm' && filled(p.h.dmTipo)) return `diabetes (${p.h.dmTipo})`;
@@ -332,7 +367,7 @@ export function draftDiagnosis(p) {
   if (sono && sono.hours < 7) parts.push(`Sono reduzido (${sono.text}).`);
   const alt = alteredExams(p);
   if (alt.length) parts.push(`Exames laboratoriais alterados (última coleta): ${alt.join('; ')}.`);
-  const goal = C.hydrationGoal(an.peso);
+  const goal = C.hydrationGoalForPatient(an.peso, age ? age.years : null, p.p.sexo);
   const agua = C.parseBRNumber(p.a.agua);
   if (goal && agua) {
     const l = p.a.aguaUnid === 'copos' ? agua * 0.2 : agua;

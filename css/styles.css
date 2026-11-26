@@ -1537,4 +1537,36 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); backgro
 .ref-exams { margin: 8px 0 0; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .ref-exams .src { margin-top: 0; }
 
+/* Modo Pediátrico */
+.ped-badge-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  background: var(--info-bg);
+  border: 1px solid var(--info);
+}
+.ped-badge {
+  font-size: .74rem;
+  font-weight: 800;
+  color: var(--info);
+  text-transform: uppercase;
+}
+.ped-z {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.ped-opt-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
