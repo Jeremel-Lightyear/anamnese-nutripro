@@ -194,6 +194,7 @@ export const DEX_BY_SLUG = Object.fromEntries(DEX_ROSTER.map((d) => [d.slug, d])
 export const dexSpriteSrc = (slug) => `./assets/sprites/dex/${DEX_BY_SLUG[slug] ? slug : 'bulbasaur'}.png`;
 export const dexAnimSrc = (slug) => `./assets/sprites/dex/anim/${DEX_BY_SLUG[slug] ? slug : 'bulbasaur'}.gif`;
 export const formatDexNumber = (n) => String(Math.max(1, Number(n) || 1)).padStart(3, '0');
+export const shouldOpenLauncher = (onboardingDone, skin) => onboardingDone === true && skin === 'nutridex';
 
 export function assignDexEntries(list) {
   if (!Array.isArray(list) || !list.length) return false;

@@ -6,7 +6,7 @@ import {
   FREQ_OPCOES, FREQ_ITEMS, LOCAIS, URINA,
   TEA_SUPORTE, TEA_SELETIVIDADE, TEA_GATILHOS, TEA_REPERTORIO, TEA_EQUIPE,
   loadSettings, saveSettings, loadPatients, savePatients, createPatient, duplicatePatient, samplePatient,
-  exportBackup, importBackup, DEX_ROSTER, DEX_BY_SLUG, dexSpriteSrc, dexAnimSrc, assignNextDex,
+  exportBackup, importBackup, DEX_ROSTER, DEX_BY_SLUG, dexSpriteSrc, dexAnimSrc, assignNextDex, shouldOpenLauncher,
 } from './state.js';
 import { renderBristolCards, openPatientMode, bristolText, BRISTOL } from './bristol.js';
 import { LAB_EXAMS, REQUEST_EXAMS, COMBOS, LAB_BY_KEY, REFERENCES, refsFor, examForAge, labAgeBadge, labValue, isAutoValue, labHint, evalExam } from './exams-data.js';
@@ -82,10 +82,7 @@ const SVG_CHK = '<svg class="tab-check" viewBox="0 0 24 24" width="14" height="1
 const SVG_INFO = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>';
 const SVG_BOOK = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2V5z"/><path d="M4 19a2 2 0 012-2h13"/></svg>';
 
-const pokeImgSrc = (slug) => {
-  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  return reduced ? dexSpriteSrc(slug) : dexAnimSrc(slug);
-};
+const pokeImgSrc = (slug) => dexAnimSrc(slug);
 const setPokeImg = (img, slug) => {
   if (!img) return;
   const fallback = dexSpriteSrc(slug);
@@ -715,6 +712,8 @@ function updateSidebarHUD(overallPct) {
   const pt = $('#prof-tipo');
   const sp = $('#sidebar-sprite');
   const dn = $('#prof-dex-num');
+  const mobBtn = $('#mob-poke-btn');
+  const mobImg = $('#mob-poke-img');
   const mobLbl = $('#mobile-step-label');
   if (mobLbl) {
     mobLbl.textContent = P ? `${String(tab + 1).padStart(2, '0')} · ${TABS[tab].n}` : 'Etapas & Resumo';
@@ -729,6 +728,7 @@ function updateSidebarHUD(overallPct) {
       sp.alt = PARTNERS[partner].name;
     }
     if (dn) dn.hidden = true;
+    if (mobBtn) mobBtn.hidden = true;
     updateMarginStages();
     const pp = $('#prof-progress');
     const pb = $('#prof-bar');
@@ -755,6 +755,12 @@ function updateSidebarHUD(overallPct) {
     const poke = DEX_BY_SLUG[P.dexPokemon] || DEX_ROSTER[0];
     setPokeImg(sp, poke.slug);
     sp.alt = poke.name;
+  }
+  if (mobBtn && mobImg) {
+    const poke = DEX_BY_SLUG[P.dexPokemon] || DEX_ROSTER[0];
+    setPokeImg(mobImg, poke.slug);
+    mobImg.alt = poke.name;
+    mobBtn.hidden = false;
   }
   if (dn) {
     dn.textContent = `Nº ${P.dexNumber || '001'}`;
@@ -878,7 +884,7 @@ function stepFooter() {
 
 function render(dir = 0) {
   const y = window.scrollY;
-  view.classList.remove('dex-enter-next', 'dex-enter-prev');
+  view.classList.remove('dex-page-next', 'dex-page-prev');
   if (!P) {
     view.innerHTML = welcome();
     updateNav();
@@ -888,7 +894,7 @@ function render(dir = 0) {
   view.innerHTML = TABS[tab].render() + stepFooter();
   if (dir !== 0 && skin === 'nutridex') {
     void view.offsetWidth;
-    view.classList.add(dir > 0 ? 'dex-enter-next' : 'dex-enter-prev');
+    view.classList.add(dir > 0 ? 'dex-page-next' : 'dex-page-prev');
   }
   refreshCalcs();
   updateNav();
@@ -1168,6 +1174,30 @@ document.addEventListener('click', async (e) => {
       storage.set(KEYS.onboarding, 'true');
       closeOnboarding();
       break;
+    case 'dl-close':
+      closeDexLauncher();
+      break;
+    case 'dl-skip':
+      finishBallTransition();
+      break;
+    case 'dl-open': {
+      const p = patients.find((x) => x.id === el.dataset.id);
+      if (!p) return;
+      const num = p.dexNumber || '001';
+      const name = p.p.nome || 'Paciente sem nome';
+      playBallTransition(p.dexPokemon, num, name, () => openPatient(p.id));
+      break;
+    }
+    case 'dl-new': {
+      const np = assignNextDex(createPatient(), patients);
+      patients.push(np);
+      savePatients(patients);
+      playBallTransition(np.dexPokemon, np.dexNumber || '001', 'Nova Anamnese', () => {
+        tab = 0;
+        openPatient(np.id);
+      });
+      break;
+    }
     case 'add': {
       const list = el.dataset.list;
       let arr = V(list);
@@ -1230,7 +1260,7 @@ document.addEventListener('click', async (e) => {
     case 'save-pdf': {
       if (!need()) return;
       const btn = $('#btn-save-pdf');
-      const lbl = btn && btn.querySelector('span');
+      const lbl = btn && btn.querySelector('.lbl-full');
       const prev = lbl ? lbl.textContent : 'Salvar PDF';
       if (btn) btn.disabled = true;
       if (lbl) lbl.textContent = 'Gerando PDF...';
@@ -1523,9 +1553,123 @@ $('#file-import-pdf').addEventListener('change', async (e) => {
     toast(err && err.message ? err.message : 'Falha ao ler PDF.');
   }
 });
+let dlQuery = '';
+let dlTimer = null;
+let dlPendingAction = null;
+
+function renderDexLauncher() {
+  const gridEl = $('#dl-grid');
+  const contBtn = $('#dl-continue');
+  const srchWrap = $('#dl-search-wrap');
+  if (!gridEl) return;
+  if (contBtn) {
+    if (P) {
+      contBtn.textContent = P.p.nome ? `Continuar: ${P.p.nome}` : 'Continuar ficha atual';
+      contBtn.hidden = false;
+    } else {
+      contBtn.hidden = true;
+    }
+  }
+  if (srchWrap) srchWrap.hidden = patients.length <= 4;
+  const q = dlQuery.trim().toLowerCase();
+  const list = patients
+    .filter((p) => !q || (p.p.nome || '').toLowerCase().includes(q))
+    .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+  gridEl.innerHTML = list.length
+    ? list.map((p) => {
+        const a = ageOf(p);
+        const ageTag = !a ? '' : a.years < 12 ? 'Pediátrico' : a.years < 20 ? 'Adolescente' : 'Adulto';
+        const meta = [ageTag, a ? `${a.years} anos` : '', new Date(p.updatedAt).toLocaleDateString('pt-BR')].filter(Boolean).join(' · ');
+        const isCur = P && P.id === p.id;
+        return `<button type="button" class="dl-item${isCur ? ' active' : ''}" data-act="dl-open" data-id="${p.id}">
+          <span class="dl-visor" aria-hidden="true"><img class="sprite" src="${dexAnimSrc(p.dexPokemon)}" onerror="this.onerror=null;this.src='${dexSpriteSrc(p.dexPokemon)}'" alt="" width="48" height="48"></span>
+          <span class="dl-info">
+            <span class="dl-badges"><span class="pdex-num mono">Nº ${esc(p.dexNumber || '001')}</span>${isCur ? '<span class="dl-cur">Atual</span>' : ''}</span>
+            <strong class="dl-name">${esc(p.p.nome) || 'Paciente sem nome'}</strong>
+            <small class="dl-meta">${esc(meta)}</small>
+          </span>
+        </button>`;
+      }).join('')
+    : `<p class="muted dl-empty">${patients.length ? 'Nenhum paciente encontrado.' : 'Nenhum paciente salvo ainda. Clique em + Nova Anamnese para começar.'}</p>`;
+}
+
+function openDexLauncher() {
+  const ov = $('#dex-launcher');
+  const cardEl = $('#dl-card');
+  const stage = $('#dex-ball-stage');
+  const srch = $('#dl-search');
+  if (!ov || !cardEl || !stage) return;
+  dlQuery = '';
+  if (srch) srch.value = '';
+  stage.hidden = true;
+  stage.classList.remove('playing');
+  cardEl.hidden = false;
+  renderDexLauncher();
+  ov.hidden = false;
+}
+
+function closeDexLauncher() {
+  clearTimeout(dlTimer);
+  dlTimer = null;
+  dlPendingAction = null;
+  const ov = $('#dex-launcher');
+  const cardEl = $('#dl-card');
+  const stage = $('#dex-ball-stage');
+  if (ov) ov.hidden = true;
+  if (stage) {
+    stage.hidden = true;
+    stage.classList.remove('playing');
+  }
+  if (cardEl) cardEl.hidden = false;
+}
+
+function finishBallTransition() {
+  clearTimeout(dlTimer);
+  dlTimer = null;
+  const fn = dlPendingAction;
+  dlPendingAction = null;
+  closeDexLauncher();
+  if (typeof fn === 'function') fn();
+}
+
+function playBallTransition(slug, num, name, onDone) {
+  const cardEl = $('#dl-card');
+  const stage = $('#dex-ball-stage');
+  const revImg = $('#dl-rev-img');
+  const revNum = $('#dl-rev-num');
+  const revName = $('#dl-rev-name');
+  if (!cardEl || !stage) {
+    closeDexLauncher();
+    if (typeof onDone === 'function') onDone();
+    return;
+  }
+  const poke = DEX_BY_SLUG[slug] || DEX_ROSTER[0];
+  setPokeImg(revImg, poke.slug);
+  if (revImg) revImg.alt = poke.name;
+  if (revNum) revNum.textContent = `Nº ${num}`;
+  if (revName) revName.textContent = name;
+  cardEl.hidden = true;
+  stage.classList.remove('playing');
+  stage.hidden = false;
+  void stage.offsetWidth;
+  stage.classList.add('playing');
+  dlPendingAction = onDone;
+  clearTimeout(dlTimer);
+  dlTimer = setTimeout(finishBallTransition, 780);
+}
+
+const dlSearchEl = $('#dl-search');
+if (dlSearchEl) {
+  dlSearchEl.addEventListener('input', (e) => {
+    dlQuery = e.target.value;
+    renderDexLauncher();
+  });
+}
+
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     hideExPop();
+    closeDexLauncher();
     toggleDrawer(false);
     toggleSidebar(false);
   }
@@ -1544,7 +1688,9 @@ document.addEventListener('keydown', (e) => {
   P = patients.find((p) => p.id === cur) || null;
   render();
   renderDrawer();
-  if (storage.get(KEYS.onboarding) !== 'true') openOnboarding();
+  const obDone = storage.get(KEYS.onboarding) === 'true';
+  if (!obDone) openOnboarding();
+  else if (shouldOpenLauncher(obDone, skin)) openDexLauncher();
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     const hadController = !!navigator.serviceWorker.controller;
     let refreshing = false;

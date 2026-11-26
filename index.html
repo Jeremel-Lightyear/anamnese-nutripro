@@ -77,7 +77,7 @@
         </button>
         <button type="button" class="btn key primary" id="btn-save-pdf" data-act="save-pdf" title="Salvar ficha em PDF (com dados editáveis embutidos)">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15l3 3 3-3"/></svg>
-          <span>Salvar PDF</span>
+          <span class="lbl-full">Salvar PDF</span><span class="lbl-short">PDF</span>
         </button>
         <button type="button" class="btn icon key" data-act="settings" aria-label="Configurações" title="Configurações">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 01-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 010-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 014 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 010 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>
@@ -140,7 +140,12 @@
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
           <span id="mobile-step-label">Etapas &amp; Resumo</span>
         </button>
-        <span class="mono mob-prog" id="mob-prog">0%</span>
+        <div class="mob-right">
+          <button type="button" class="mob-poke-btn" id="mob-poke-btn" data-act="pick-poke" title="Trocar Pokémon do paciente" aria-label="Trocar Pokémon do paciente" hidden>
+            <img id="mob-poke-img" class="sprite" src="./assets/sprites/dex/anim/bulbasaur.gif" alt="" width="30" height="30">
+          </button>
+          <span class="mono mob-prog" id="mob-prog">0%</span>
+        </div>
       </div>
       <main id="view" class="view"></main>
     </div>
@@ -159,12 +164,12 @@
     <input type="search" id="psearch" placeholder="Buscar por nome…" aria-label="Buscar paciente">
     <ul class="plist" id="plist"></ul>
     <div class="dfoot">
-      <div class="row">
-        <button type="button" class="btn ghost" data-act="export">Exportar Backup (.json)</button>
-        <button type="button" class="btn ghost" data-act="import">Importar Backup (.json)</button>
+      <div class="dfoot-grid">
+        <button type="button" class="btn ghost" data-act="export">Exportar .json</button>
+        <button type="button" class="btn ghost" data-act="import">Importar .json</button>
+        <button type="button" class="btn ghost" data-act="import-pdf">Importar .pdf</button>
+        <button type="button" class="btn ghost" data-act="sample">Paciente Exemplo</button>
       </div>
-      <button type="button" class="btn ghost block" data-act="import-pdf">Importar Paciente (.pdf)</button>
-      <button type="button" class="btn ghost block" data-act="sample">Carregar Paciente Exemplo</button>
       <input type="file" id="file-import" accept="application/json,.json" hidden>
       <input type="file" id="file-import-pdf" accept="application/pdf,.pdf" hidden>
       <p class="privacy">
@@ -172,7 +177,7 @@
         <span><b>Privacidade (LGPD):</b> os dados deste app ficam armazenados exclusivamente neste dispositivo (navegador). Nada é enviado a servidores.</span>
       </p>
       <div class="app-ver-bar">
-        <span class="mono app-ver">Versão v13</span>
+        <span class="mono app-ver">Versão v14</span>
         <button type="button" class="btn mini ghost" data-act="force-update" title="Buscar nova versão sem apagar pacientes">Forçar atualização</button>
       </div>
     </div>
@@ -386,6 +391,50 @@
       <div class="ob-foot">
         <button type="button" class="btn primary block ob-cta" id="ob-confirm" data-act="ob-confirm">Escolher Bulbasaur e começar</button>
         <button type="button" class="ob-clean" data-act="ob-clean">Prefere visual neutro? Entrar no modo Clínico Clean</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="dex-launcher-overlay" id="dex-launcher" role="dialog" aria-modal="true" aria-labelledby="dl-title" hidden>
+    <div class="dex-launcher-card" id="dl-card">
+      <div class="dl-head">
+        <div class="dex-head-left">
+          <span class="dex-mini-lens" aria-hidden="true"></span>
+          <span class="dex-mini-leds" aria-hidden="true"><i class="r"></i><i class="y"></i><i class="g"></i></span>
+          <h2 id="dl-title">NutriDex · Escolher Paciente</h2>
+        </div>
+        <button type="button" class="btn icon dlg-x" data-act="dl-close" aria-label="Fechar">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="dl-top-actions">
+        <button type="button" class="btn primary" data-act="dl-new">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h6m6 0h6"/><circle cx="12" cy="12" r="3"/></svg>
+          <span>+ Nova Anamnese</span>
+        </button>
+        <button type="button" class="btn ghost" id="dl-continue" data-act="dl-close" hidden>Continuar ficha atual</button>
+      </div>
+      <div class="dl-search-wrap" id="dl-search-wrap" hidden>
+        <input type="search" id="dl-search" placeholder="Buscar paciente pelo nome..." aria-label="Buscar paciente pelo nome" autocomplete="off">
+      </div>
+      <div class="dl-grid" id="dl-grid"></div>
+    </div>
+    <div class="dex-ball-stage" id="dex-ball-stage" data-act="dl-skip" hidden>
+      <div class="dex-pokeball" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="64" height="64">
+          <circle cx="32" cy="32" r="29" fill="#FFFFFF" stroke="#1C1F26" stroke-width="4"/>
+          <path d="M3 32 A29 29 0 0 1 61 32 Z" fill="#DC2626" stroke="#1C1F26" stroke-width="4"/>
+          <line x1="3" y1="32" x2="61" y2="32" stroke="#1C1F26" stroke-width="4.5"/>
+          <circle cx="32" cy="32" r="9" fill="#FFFFFF" stroke="#1C1F26" stroke-width="4"/>
+          <circle cx="32" cy="32" r="4" fill="#38BDF8"/>
+        </svg>
+      </div>
+      <div class="dex-flash" aria-hidden="true"></div>
+      <div class="dex-reveal">
+        <img id="dl-rev-img" class="sprite" src="./assets/sprites/dex/anim/bulbasaur.gif" alt="" width="96" height="96">
+        <span class="mono dl-rev-num" id="dl-rev-num">Nº 001</span>
+        <strong class="dl-rev-name" id="dl-rev-name">Paciente</strong>
+        <small class="dl-skip-hint">Toque para pular</small>
       </div>
     </div>
   </div>
